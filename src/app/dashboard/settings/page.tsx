@@ -34,8 +34,10 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">Settings</h1>
-        <p className="mt-1 text-sm text-stone-400">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          Settings
+        </h1>
+        <p className="mt-2 text-base text-muted-foreground">
           Organization settings, integrations, and billing.
         </p>
       </div>
@@ -48,34 +50,36 @@ export default async function SettingsPage() {
             icon: Building2,
             label: "Organization",
             desc: "Manage your org profile, name, and preferences.",
-            color: "text-stone-600",
-            bg: "bg-stone-50",
+            color: "text-primary",
+            bg: "bg-secondary border border-border",
           },
           {
             icon: Blocks,
             label: "Integrations",
             desc: "Connect Slack, Microsoft Teams, and other tools.",
-            color: "text-violet-600",
-            bg: "bg-violet-50",
+            color: "text-primary",
+            bg: "bg-secondary border border-border",
           },
           {
             icon: CreditCard,
             label: "Billing",
             desc: "Manage your subscription, seats, and invoices.",
-            color: "text-amber-600",
-            bg: "bg-amber-50",
+            color: "text-primary",
+            bg: "bg-secondary border border-border",
           },
         ].map((item) => (
           <div
             key={item.label}
-            className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+            className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
           >
             <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.bg}`}>
               <item.icon className={`h-5 w-5 ${item.color}`} />
             </div>
-            <h3 className="mt-4 text-sm font-semibold text-stone-700">{item.label}</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-stone-400">{item.desc}</p>
-            <div className="mt-4 inline-flex rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-medium text-stone-400">
+            <h3 className="mt-4 text-base font-semibold text-foreground">{item.label}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {item.desc}
+            </p>
+            <div className="mt-4 inline-flex rounded-lg border border-border bg-secondary px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
               Coming soon
             </div>
           </div>

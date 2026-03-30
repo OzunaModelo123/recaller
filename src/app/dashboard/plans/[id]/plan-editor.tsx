@@ -188,10 +188,10 @@ export function PlanEditor(props: {
   return (
     <div className="space-y-8">
       {props.quality && (
-        <Card className="border-stone-200 shadow-sm">
+        <Card className="shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Quality scores</CardTitle>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               Average {props.quality.overall_score.toFixed(1)} / 5
               {props.quality.forbidden_activity_violation && (
                 <span className="ml-2 font-medium text-amber-700">
@@ -219,7 +219,7 @@ export function PlanEditor(props: {
             <div className="space-y-3">
               {radarData.map((r) => (
                 <div key={r.dim}>
-                  <div className="mb-1 flex justify-between text-xs text-stone-600">
+                  <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                     <span>{r.dim}</span>
                     <span>
                       {r.score}/{r.full}
@@ -234,14 +234,14 @@ export function PlanEditor(props: {
       )}
 
       {props.analysis && (
-        <Collapsible className="rounded-2xl border border-stone-200 bg-white shadow-sm">
-          <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-semibold text-stone-800 hover:bg-stone-50">
+        <Collapsible className="rounded-2xl border border-border bg-card shadow-none">
+          <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-semibold text-muted-foreground hover:bg-secondary/80">
             AI analysis
-            <ChevronDown className="h-4 w-4 text-stone-400" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </CollapsibleTrigger>
-          <CollapsibleContent className="border-t border-stone-100 px-5 py-4 text-sm text-stone-600">
-            <p className="font-medium text-stone-700">{props.analysis.summary}</p>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-stone-500">
+          <CollapsibleContent className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">{props.analysis.summary}</p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
               <li>Key concepts: {props.analysis.key_concepts.join(", ")}</li>
               <li>Skills: {props.analysis.skills_taught.join(", ")}</li>
               <li>Complexity: {props.analysis.complexity}</li>
@@ -252,16 +252,16 @@ export function PlanEditor(props: {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-widest text-stone-400">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
             Target role
           </p>
-          <p className="text-sm font-medium text-stone-800">
+          <p className="text-sm font-medium text-foreground">
             {props.targetRole ?? "—"}
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">
-            <Label className="text-xs text-stone-500">Regenerate for role</Label>
+            <Label className="text-xs text-muted-foreground">Regenerate for role</Label>
             <Select value={regenRole} onValueChange={setRegenRole}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Role" />
@@ -302,16 +302,16 @@ export function PlanEditor(props: {
           checked={isTemplate}
           onCheckedChange={setIsTemplate}
         />
-        <Label htmlFor="tpl" className="text-sm text-stone-700">
+        <Label htmlFor="tpl" className="text-sm text-foreground">
           Save as template
         </Label>
       </div>
 
       <div className="space-y-6">
         {steps.map((s, i) => (
-          <Card key={i} className="border-stone-200 shadow-sm">
+          <Card key={i} className="shadow-none">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-stone-800">
+              <CardTitle className="text-sm font-semibold text-foreground">
                 Step {i + 1}
               </CardTitle>
             </CardHeader>

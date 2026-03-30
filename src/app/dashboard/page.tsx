@@ -10,6 +10,7 @@ import {
   Activity,
   Zap,
 } from "lucide-react";
+import { HeroPanelCta } from "@/components/design/hero-panel-cta";
 import { createClient } from "@/lib/supabase/server";
 
 function getGreeting(): string {
@@ -29,8 +30,8 @@ const steps = [
     description: "Add a YouTube video, PDF, or document to your content library.",
     icon: Upload,
     href: "/dashboard/content/upload",
-    accent: "from-amber-500/10 to-orange-500/10",
-    iconColor: "text-amber-600",
+    accent: "from-primary/18 via-secondary/10 to-transparent",
+    iconColor: "text-primary",
     number: "01",
   },
   {
@@ -38,8 +39,8 @@ const steps = [
     description: "AI creates actionable, multi-step learning plans from your content.",
     icon: Sparkles,
     href: "/dashboard/content",
-    accent: "from-violet-500/10 to-indigo-500/10",
-    iconColor: "text-violet-600",
+    accent: "from-primary/18 via-secondary/10 to-transparent",
+    iconColor: "text-primary",
     number: "02",
   },
   {
@@ -47,8 +48,8 @@ const steps = [
     description: "Distribute plans via Slack, Teams, or email and track completion.",
     icon: Send,
     href: "/dashboard/assignments",
-    accent: "from-emerald-500/10 to-teal-500/10",
-    iconColor: "text-emerald-600",
+    accent: "from-primary/18 via-secondary/10 to-transparent",
+    iconColor: "text-primary",
     number: "03",
   },
 ];
@@ -109,31 +110,31 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-10">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900/70 px-8 py-10 shadow-xl shadow-stone-900/5">
-        <div className="grain absolute inset-0 rounded-2xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(217,170,100,0.12),transparent_60%)]" />
-        <div className="absolute right-0 top-0 h-72 w-72 bg-[radial-gradient(circle,rgba(255,255,255,0.03),transparent_70%)]" />
+      <div className="relative overflow-hidden rounded-xl bg-sidebar px-8 py-10 shadow-lg">
+        <div className="grain absolute inset-0 rounded-xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(232,115,74,0.15),transparent_50%)]" />
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-sidebar-primary/10 blur-3xl" />
 
         <div className="relative z-10">
-          <p className="text-xs font-medium uppercase tracking-widest text-stone-400">
+          <p className="text-xs font-medium uppercase tracking-widest text-sidebar-foreground/60">
             {orgName}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-sidebar-foreground">
             {greeting}, {firstName}
           </h1>
-          <p className="mt-3 max-w-lg text-sm leading-relaxed text-stone-300">
+          <p className="mt-3 max-w-lg text-sm leading-relaxed text-sidebar-foreground/70">
             {isAdmin
               ? "Manage training content, generate AI-powered plans, and track how your team learns."
               : "Complete your assigned training plans and build real skills, one step at a time."}
           </p>
           {isAdmin && (
-            <Link
+            <HeroPanelCta
               href="/dashboard/content/upload"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
+              className="mt-6"
             >
               Upload content
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
+              <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
+            </HeroPanelCta>
           )}
         </div>
       </div>
@@ -145,37 +146,31 @@ export default async function DashboardPage() {
             label: "Content Items",
             value: contentCountLabel,
             icon: BookOpen,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
           },
           {
             label: "Team Members",
             value: teamCountLabel,
             icon: Users,
-            color: "text-violet-600",
-            bg: "bg-violet-50",
           },
           {
             label: "Completion Rate",
             value: "0%",
             icon: TrendingUp,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
           },
         ].map((stat) => (
           <div
             key={stat.label}
-            className="group rounded-2xl border border-stone-150 bg-white p-5 shadow-sm transition-all hover:shadow-md"
+            className="group rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5"
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-stone-400">{stat.label}</p>
-                <p className="mt-1 text-3xl font-semibold tracking-tight text-stone-900">
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                <p className="mt-1.5 text-3xl font-semibold tracking-tight text-foreground">
                   {stat.value}
                 </p>
               </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.bg}`}>
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
+                <stat.icon className="h-5 w-5 text-primary" />
               </div>
             </div>
           </div>
@@ -186,10 +181,10 @@ export default async function DashboardPage() {
       {isAdmin && (
         <div className="space-y-5">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-stone-900">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Get started
             </h2>
-            <p className="mt-1 text-sm text-stone-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               Three steps to transform your training workflow.
             </p>
           </div>
@@ -198,27 +193,27 @@ export default async function DashboardPage() {
               <Link
                 key={step.title}
                 href={step.href}
-                className="group relative overflow-hidden rounded-2xl border border-stone-150 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                className="group relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 hover:border-primary/20"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${step.accent} opacity-0 transition-opacity group-hover:opacity-100`} />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                 <div className="relative">
                   <div className="flex items-center justify-between">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-stone-50 ${step.iconColor} transition-colors group-hover:bg-white`}>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
                       <step.icon className="h-5 w-5" />
                     </div>
-                    <span className="text-xs font-mono text-stone-300">
+                    <span className="text-xs font-mono text-muted-foreground/70">
                       {step.number}
                     </span>
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-stone-800">
+                  <h3 className="mt-4 text-sm font-semibold text-foreground">
                     {step.title}
                   </h3>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-stone-400">
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                     {step.description}
                   </p>
-                  <div className="mt-4 flex items-center gap-1 text-xs font-medium text-stone-400 transition-colors group-hover:text-stone-700">
+                  <div className="mt-4 flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
                     Get started
-                    <ArrowUpRight className="h-3 w-3" />
+                    <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </div>
                 </div>
               </Link>
@@ -229,27 +224,27 @@ export default async function DashboardPage() {
 
       {/* Activity + Insights */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-stone-150 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
-              <Activity className="h-4 w-4 text-emerald-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Activity className="h-4 w-4 text-primary" />
             </div>
-            <h3 className="text-sm font-semibold text-stone-800">Recent Activity</h3>
+            <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
           </div>
-          <p className="mt-4 text-sm leading-relaxed text-stone-400">
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             No activity yet. Once your team starts completing plans, their progress
             will appear here.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-stone-150 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-              <Zap className="h-4 w-4 text-amber-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Zap className="h-4 w-4 text-primary" />
             </div>
-            <h3 className="text-sm font-semibold text-stone-800">AI Insights</h3>
+            <h3 className="text-sm font-semibold text-foreground">AI Insights</h3>
           </div>
-          <p className="mt-4 text-sm leading-relaxed text-stone-400">
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             After 30 days of data, Recaller generates AI-powered insights about your
             team&apos;s learning patterns and performance.
           </p>

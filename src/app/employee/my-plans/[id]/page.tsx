@@ -81,7 +81,7 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
 
   if (steps.length === 0) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-8 text-center text-sm text-stone-600">
+      <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
         This plan has no steps yet. Contact your admin.
       </div>
     );

@@ -40,16 +40,14 @@ export function SetupPasswordForm() {
     }
 
     await supabase.auth.refreshSession();
-    router.replace("/employee/my-plans");
+    router.replace("/employee");
     router.refresh();
   }
 
   return (
     <form className="space-y-5" onSubmit={onSubmit}>
       <div className="space-y-2">
-        <Label htmlFor="new-password" className="text-xs font-medium text-stone-600">
-          Create password
-        </Label>
+        <Label htmlFor="new-password">Create password</Label>
         <Input
           id="new-password"
           type="password"
@@ -57,14 +55,12 @@ export function SetupPasswordForm() {
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="h-11 rounded-xl border-stone-200"
+          className="h-11 rounded-xl"
           required
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirm-password" className="text-xs font-medium text-stone-600">
-          Confirm password
-        </Label>
+        <Label htmlFor="confirm-password">Confirm password</Label>
         <Input
           id="confirm-password"
           type="password"
@@ -72,16 +68,18 @@ export function SetupPasswordForm() {
           minLength={8}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          className="h-11 rounded-xl border-stone-200"
+          className="h-11 rounded-xl"
           required
         />
       </div>
       {error ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
       ) : null}
       <Button
         type="submit"
-        className="h-11 w-full rounded-xl bg-stone-900"
+        className="h-11 w-full rounded-xl"
         disabled={loading}
       >
         {loading ? (
@@ -90,7 +88,7 @@ export function SetupPasswordForm() {
             Saving…
           </>
         ) : (
-          "Continue to My Plans"
+          "Continue to home"
         )}
       </Button>
     </form>

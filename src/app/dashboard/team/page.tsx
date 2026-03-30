@@ -24,7 +24,7 @@ export default async function TeamPage() {
   }
 
   if (me.role !== "admin" && me.role !== "super_admin") {
-    redirect("/employee/my-plans");
+    redirect("/employee");
   }
 
   const [{ data: members }, { data: pendingInvites }] = await Promise.all([
@@ -52,22 +52,24 @@ export default async function TeamPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">Team</h1>
-        <p className="mt-1 text-sm text-stone-400">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          Team
+        </h1>
+        <p className="mt-2 text-base text-muted-foreground">
           Invite employees by email. They join through your invitation only.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-stone-100 px-6 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50">
-            <UserPlus className="h-[18px] w-[18px] text-violet-600" />
+      <div className="rounded-2xl border border-border bg-card shadow-none">
+        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary border border-border">
+            <UserPlus className="h-[18px] w-[18px] text-primary" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-stone-800">
+            <h2 className="text-sm font-semibold text-foreground">
               Invite an employee
             </h2>
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-muted-foreground">
               Employees get access to training plans. They cannot create an org or upload content.
             </p>
           </div>
@@ -77,14 +79,14 @@ export default async function TeamPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-stone-100 px-6 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-50">
-            <Users className="h-[18px] w-[18px] text-stone-600" />
+      <div className="rounded-2xl border border-border bg-card shadow-none">
+        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary border border-border">
+            <Users className="h-[18px] w-[18px] text-primary" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-stone-800">Team members</h2>
-            <p className="text-xs text-stone-400">
+            <h2 className="text-sm font-semibold text-foreground">Team members</h2>
+            <p className="text-xs text-muted-foreground">
               People in your workspace and invitations still pending.
             </p>
           </div>
@@ -92,41 +94,41 @@ export default async function TeamPage() {
 
         <div className="overflow-x-auto px-6 py-4">
           {(members ?? []).length === 0 && pendingRows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-stone-500">
+            <p className="py-8 text-center text-sm text-muted-foreground">
               No team members yet. Send an invite above.
             </p>
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-stone-100 text-xs font-medium uppercase tracking-wide text-stone-400">
+                <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <th className="pb-3 pr-4 font-medium">Name</th>
                   <th className="pb-3 pr-4 font-medium">Email</th>
                   <th className="pb-3 pr-4 font-medium">Role</th>
                   <th className="pb-3 font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody className="text-stone-700">
+              <tbody className="text-muted-foreground">
                 {(members ?? []).map((m) => (
-                  <tr key={m.id} className="border-b border-stone-50 last:border-0">
+                  <tr key={m.id} className="border-b border-border last:border-0">
                     <td className="py-3 pr-4">
                       {m.full_name?.trim() || "—"}
                     </td>
                     <td className="py-3 pr-4">{m.email}</td>
                     <td className="py-3 pr-4 capitalize">{m.role.replace("_", " ")}</td>
                     <td className="py-3">
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         Active
                       </span>
                     </td>
                   </tr>
                 ))}
                 {pendingRows.map((p) => (
-                  <tr key={`inv-${p.email}`} className="border-b border-stone-50 last:border-0">
-                    <td className="py-3 pr-4 text-stone-400">—</td>
+                  <tr key={`inv-${p.email}`} className="border-b border-border last:border-0">
+                    <td className="py-3 pr-4 text-muted-foreground">—</td>
                     <td className="py-3 pr-4">{p.email}</td>
                     <td className="py-3 pr-4">Employee</td>
                     <td className="py-3">
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-foreground/70">
                         Invite pending
                       </span>
                     </td>

@@ -35,35 +35,37 @@ export default async function ContentDetailPage({ params }: Props) {
 
   const statusColor =
     item.status === "ready"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      ? "bg-chart-1/12 text-chart-1 border-chart-1/25"
       : item.status === "failed"
-        ? "bg-red-50 text-red-700 border-red-200"
-        : "bg-amber-50 text-amber-700 border-amber-200";
+        ? "bg-destructive/10 text-destructive border-destructive/25"
+        : "bg-chart-3/12 text-chart-3 border-chart-3/30";
 
   return (
     <div className="space-y-8">
       <div>
         <Link
           href="/dashboard/content"
-          className="inline-flex items-center gap-1.5 text-sm text-stone-400 transition-colors hover:text-stone-700"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Content library
         </Link>
 
-        <h1 className="mt-4 text-xl font-semibold tracking-tight text-stone-900">
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
           {item.title}
         </h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-[11px] font-medium ${statusColor}`}>
+          <span
+            className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium capitalize ${statusColor}`}
+          >
             {item.status}
           </span>
-          <span className="inline-flex items-center gap-1.5 text-xs text-stone-400">
+          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <Clock className="h-3 w-3" />
             {created}
           </span>
-          <span className="rounded-lg bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-500">
+          <span className="rounded-lg border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
             {item.source_type}
           </span>
         </div>
@@ -71,7 +73,7 @@ export default async function ContentDetailPage({ params }: Props) {
         {item.source_url && (
           <a
             href={item.source_url}
-            className="mt-3 inline-flex items-center gap-1.5 text-sm text-stone-500 underline underline-offset-2 transition-colors hover:text-stone-800"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
             target="_blank"
             rel="noreferrer"
           >
@@ -84,11 +86,11 @@ export default async function ContentDetailPage({ params }: Props) {
       </div>
 
       {/* Transcript */}
-      <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-stone-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-border bg-card shadow-none">
+        <div className="flex flex-col gap-4 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            <FileText className="h-4 w-4 text-stone-400" />
-            <h2 className="text-sm font-semibold text-stone-800">Transcript</h2>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Transcript</h2>
           </div>
           <GeneratePlanButton
             contentItemId={item.id}
@@ -97,15 +99,15 @@ export default async function ContentDetailPage({ params }: Props) {
         </div>
         <div className="px-6 py-5">
           {item.transcript ? (
-            <pre className="max-h-[min(70vh,720px)] overflow-auto whitespace-pre-wrap rounded-xl bg-stone-50 p-5 font-mono text-[13px] leading-relaxed text-stone-700">
+            <pre className="max-h-[min(70vh,720px)] overflow-auto whitespace-pre-wrap rounded-xl bg-card p-5 font-mono text-[13px] leading-relaxed text-muted-foreground">
               {item.transcript}
             </pre>
           ) : (
             <div className="flex flex-col items-center py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-50">
-                <FileText className="h-5 w-5 text-stone-300" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card">
+                <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
-              <p className="mt-4 max-w-sm text-sm text-stone-400">
+              <p className="mt-4 max-w-sm text-sm text-muted-foreground">
                 {item.status === "queued" || item.status === "transcribing"
                   ? "Transcript is not ready yet. If this is an audio or video upload, start the Inngest dev server and wait for Whisper to finish."
                   : item.status === "failed"

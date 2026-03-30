@@ -47,7 +47,7 @@ export default async function PostLoginPage() {
     if (invitedOrg && !passwordSet) {
       redirect("/employee/setup-password");
     }
-    redirect("/employee/my-plans");
+    redirect("/employee");
   }
 
   redirect("/dashboard");

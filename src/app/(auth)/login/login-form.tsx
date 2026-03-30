@@ -86,10 +86,10 @@ function LoginFormInner() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Welcome back
         </h1>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-muted-foreground">
           Sign in to your Recaller account to continue.
         </p>
       </div>
@@ -108,9 +108,7 @@ function LoginFormInner() {
         ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-xs font-medium text-stone-600">
-            Email address
-          </Label>
+          <Label htmlFor="email">Email address</Label>
           <Input
             id="email"
             type="email"
@@ -118,15 +116,13 @@ function LoginFormInner() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+            className="h-11 rounded-xl"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-xs font-medium text-stone-600">
-            Password
-          </Label>
+          <Label htmlFor="password">Password</Label>
           <Input
             id="password"
             type="password"
@@ -134,7 +130,7 @@ function LoginFormInner() {
             placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+            className="h-11 rounded-xl"
             required
           />
         </div>
@@ -146,7 +142,7 @@ function LoginFormInner() {
         ) : null}
 
         <Button
-          className="h-11 w-full rounded-xl bg-stone-900 text-sm font-medium transition-all hover:bg-stone-800"
+          className="h-11 w-full rounded-xl text-sm font-medium"
           disabled={loading}
           type="submit"
         >
@@ -161,15 +157,18 @@ function LoginFormInner() {
         </Button>
       </form>
 
-      <div className="space-y-3 border-t border-stone-100 pt-5">
-        <p className="text-sm text-stone-500">
-          <span className="font-medium text-stone-700">Employer?</span>{" "}
-          <Link className="underline underline-offset-2 hover:text-stone-900" href="/signup">
+      <div className="space-y-3 border-t border-border pt-5">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Employer?</span>{" "}
+          <Link
+            className="underline underline-offset-2 hover:text-foreground"
+            href="/signup"
+          >
             Create your organization
           </Link>
         </p>
-        <p className="text-sm text-stone-500">
-          <span className="font-medium text-stone-700">Employee?</span>{" "}
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Employee?</span>{" "}
           Ask your admin for an invite — you&apos;ll finish setup from the email link.
         </p>
       </div>
@@ -183,10 +182,10 @@ export function LoginForm() {
       fallback={
         <div className="space-y-8">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Welcome back
             </h1>
-            <p className="text-sm text-stone-500">Loading...</p>
+            <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
         </div>
       }

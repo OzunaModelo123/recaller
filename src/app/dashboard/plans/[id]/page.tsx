@@ -143,12 +143,12 @@ export default async function PlanDetailPage({ params }: Props) {
       <div>
         <Link
           href="/dashboard/plans"
-          className="inline-flex items-center gap-1.5 text-sm text-stone-400 transition-colors hover:text-stone-700"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Plans
         </Link>
-        <h1 className="mt-4 text-xl font-semibold tracking-tight text-stone-900">
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
           {plan.title}
         </h1>
       </div>

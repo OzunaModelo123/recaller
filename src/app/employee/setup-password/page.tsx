@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+
 import { SetupPasswordForm } from "./setup-password-form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
 
 function inviteNeedsPassword(user: {
   user_metadata?: Record<string, unknown> | null;
@@ -44,18 +46,44 @@ export default async function EmployeeSetupPasswordPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">
-          Set your password
-        </h1>
-        <p className="text-sm text-stone-500">
-          Choose a password for your account before you can open training plans.
-        </p>
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-sidebar/20 via-card to-primary/10 px-5 py-6 shadow-sm">
+        <div
+          className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl"
+          aria-hidden
+        />
+        <div className="relative flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-sm font-bold text-foreground shadow-sm">
+            R
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Welcome
+            </p>
+            <p className="text-sm font-medium text-foreground">
+              Set up your Recaller account
+            </p>
+          </div>
+        </div>
       </div>
-      <SetupPasswordForm />
-      <p className="text-center text-xs text-stone-400">
+
+      <Card className="shadow-none">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
+            Create your password
+          </CardTitle>
+          <CardDescription className="text-sm leading-relaxed text-muted-foreground">
+            Choose a secure password to finish joining your team. After this, you&apos;ll land on
+            your home dashboard with assigned training plans.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SetupPasswordForm />
+        </CardContent>
+      </Card>
+
+      <p className="text-center text-xs text-muted-foreground">
         Wrong person?{" "}
-        <Link href="/auth/signout" className="underline underline-offset-2">
+        <Link href="/auth/signout" className="font-medium underline underline-offset-2">
           Sign out
         </Link>
       </p>

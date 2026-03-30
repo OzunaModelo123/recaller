@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -12,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProofType } from "@/lib/proof";
 import { evidenceSatisfiesProof } from "@/lib/proof";
-import { ChevronDown, ChevronUp, Lock } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Lock } from "lucide-react";
 
 export type EmployeePlanStep = {
   step_number: number;
@@ -148,44 +149,63 @@ export function AssignmentStepFlow({
         />
       )}
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">
-          {planTitle}
-        </h1>
-        <div className="mt-3 space-y-1">
-          <div className="flex justify-between text-xs text-stone-500">
-            <span>
-              Progress: {doneCount} / {total}
-            </span>
+      <div className="space-y-4">
+        <Link
+          href="/employee/my-plans"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          All plans
+        </Link>
+        <div className="border-b border-border pb-5">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            {planTitle}
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Step {currentStep?.step_number ?? total} of {total}
+            {currentStep == null && total > 0 ? " · Plan complete" : ""}
+          </p>
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-xs font-medium text-muted-foreground">
+              <span>
+                {doneCount} / {total} steps complete
+              </span>
+              <span className="tabular-nums">
+                {total > 0 ? Math.round(progressPct) : 0}%
+              </span>
+            </div>
+            <Progress value={progressPct} className="h-2.5" />
           </div>
-          <Progress value={progressPct} className="h-2" />
         </div>
       </div>
 
       {currentStep && (
-        <Card className="border-stone-200 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base leading-snug">
+        <Card className="shadow-none">
+          <CardHeader className="space-y-1 pb-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Current step
+            </p>
+            <CardTitle className="text-base leading-snug sm:text-lg">
               Step {currentStep.step_number}: {currentStep.title}
             </CardTitle>
             {currentStep.estimated_minutes != null && (
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-muted-foreground">
                 About {currentStep.estimated_minutes} min
               </p>
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="whitespace-pre-wrap text-sm text-stone-700">
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground/90">
               {currentStep.instructions}
             </p>
-            <div className="rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-stone-800">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-900/80">
+            <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/90">
                 Success criteria
               </p>
               <p className="mt-1 whitespace-pre-wrap">{currentStep.success_criteria}</p>
             </div>
-            <div className="rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-stone-800">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-900/80">
+            <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/90">
                 Proof for Recaller
               </p>
               <p className="mt-1 whitespace-pre-wrap">{currentStep.proof_instructions}</p>
@@ -195,7 +215,7 @@ export function AssignmentStepFlow({
                 href={watchUrlForStep(currentStep)!}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex text-sm font-medium text-sky-700 underline underline-offset-2"
+                className="inline-flex text-sm font-medium text-primary underline underline-offset-2"
               >
                 Watch relevant video section
               </a>
@@ -263,7 +283,7 @@ export function AssignmentStepFlow({
 
             <Button
               type="button"
-              className="h-12 w-full rounded-xl bg-emerald-600 text-base hover:bg-emerald-700"
+              className="h-12 w-full rounded-xl"
               disabled={busy || !canSubmit}
               onClick={() => void onComplete()}
             >
@@ -274,14 +294,21 @@ export function AssignmentStepFlow({
       )}
 
       {!currentStep && total > 0 && (
-        <p className="text-center text-sm font-medium text-emerald-700">
-          You&apos;ve completed every step for this plan.
-        </p>
+        <Card className="shadow-none">
+          <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
+            <p className="text-sm font-medium text-foreground">
+              You&apos;ve completed every step for this plan.
+            </p>
+            <Button asChild variant="outline" className="rounded-xl">
+              <Link href="/employee/my-plans">Return to My Plans</Link>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       <button
         type="button"
-        className="flex w-full items-center justify-center gap-2 text-sm text-stone-500"
+        className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
         onClick={() => setShowAll((v) => !v)}
       >
         {showAll ? (
@@ -306,7 +333,7 @@ export function AssignmentStepFlow({
             return (
               <Card
                 key={s.step_number}
-                className={`border-stone-200 ${upcoming ? "opacity-60" : ""}`}
+                className={`${upcoming ? "opacity-60" : ""}`}
               >
                 <CardHeader className="py-3">
                   <div className="flex items-start justify-between gap-2">
@@ -317,12 +344,12 @@ export function AssignmentStepFlow({
                       <span className="text-xs font-medium text-emerald-600">Done</span>
                     )}
                     {upcoming && (
-                      <Lock className="h-4 w-4 shrink-0 text-stone-400" aria-hidden />
+                      <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                     )}
                   </div>
                 </CardHeader>
                 {!upcoming && (
-                  <CardContent className="pt-0 text-xs text-stone-600">
+                  <CardContent className="pt-0 text-xs text-muted-foreground">
                     <p className="line-clamp-4 whitespace-pre-wrap">{s.instructions}</p>
                   </CardContent>
                 )}

@@ -16,11 +16,11 @@ export function TeamInviteForm() {
   return (
     <form action={formAction} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="invite-email" className="text-xs font-medium text-stone-500">
+        <Label htmlFor="invite-email">
           Employee email
         </Label>
         <div className="relative">
-          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-300" />
+          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="invite-email"
             name="email"
@@ -29,10 +29,10 @@ export function TeamInviteForm() {
             placeholder="colleague@company.com"
             required
             disabled={pending}
-            className="h-11 rounded-xl border-stone-200 bg-white pl-10 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+            className="h-11 rounded-xl pl-10"
           />
         </div>
-        <p className="text-[11px] text-stone-400">
+        <p className="text-[11px] text-muted-foreground">
           They&apos;ll get an email link to accept the invite, then choose a password
           before accessing training.
         </p>
@@ -53,7 +53,7 @@ export function TeamInviteForm() {
       <Button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-stone-900 hover:bg-stone-800"
+        className="rounded-xl"
       >
         {pending ? (
           <>

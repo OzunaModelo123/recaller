@@ -126,13 +126,20 @@ export function ContentUploadForm() {
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
               <Check className="h-4 w-4 text-emerald-600" />
             </div>
-            <p className="text-sm font-medium text-stone-700">Content added to your library.</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Content added to your library.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="rounded-lg" asChild>
               <Link href={`/dashboard/content/${lastSuccessId}`}>View</Link>
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-stone-400 hover:text-stone-600" onClick={() => setLastSuccessId(null)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setLastSuccessId(null)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -141,11 +148,11 @@ export function ContentUploadForm() {
 
       {/* Processing status */}
       {trackingId && (
-        <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-none">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-stone-800">Processing</p>
-              <p className="mt-0.5 text-xs text-stone-400">
+              <p className="text-sm font-semibold text-foreground">Processing</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {liveStatus === "queued" || liveStatus === "transcribing" || !liveStatus
                   ? "Background transcription via Inngest. Run `npx inngest-cli@latest dev` locally."
                   : "Transcription complete."}
@@ -171,21 +178,21 @@ export function ContentUploadForm() {
       )}
 
       {/* URL input */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-none">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-50">
-            <Link2 className="h-5 w-5 text-stone-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
+            <Link2 className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-stone-800">Paste a URL</h2>
-            <p className="text-xs text-stone-400">YouTube, Vimeo, Loom, or any web article.</p>
+            <h2 className="text-sm font-semibold text-foreground">Paste a URL</h2>
+            <p className="text-xs text-muted-foreground">
+              YouTube, Vimeo, Loom, or any web article.
+            </p>
           </div>
         </div>
         <form onSubmit={onSubmitUrl} className="mt-5 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="content-url" className="text-xs font-medium text-stone-500">
-              URL
-            </Label>
+            <Label htmlFor="content-url">URL</Label>
             <Input
               id="content-url"
               name="url"
@@ -194,16 +201,18 @@ export function ContentUploadForm() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={isPendingUrl}
-              className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+              className="h-11 rounded-xl"
             />
           </div>
           {urlError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{urlError}</p>
+            <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {urlError}
+            </p>
           )}
           <Button
             type="submit"
             disabled={isPendingUrl || !url.trim()}
-            className="rounded-xl bg-stone-900 hover:bg-stone-800"
+            className="rounded-xl"
           >
             {isPendingUrl ? (
               <>
@@ -218,14 +227,14 @@ export function ContentUploadForm() {
       </div>
 
       {/* File upload */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-none">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-50">
-            <CloudUpload className="h-5 w-5 text-stone-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
+            <CloudUpload className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-stone-800">Upload a file</h2>
-            <p className="text-xs text-stone-400">
+            <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
+            <p className="text-xs text-muted-foreground">
               PDF, DOCX (instant), or MP4/MP3 (Whisper via Inngest). Max 500 MB.
             </p>
           </div>
@@ -256,25 +265,27 @@ export function ContentUploadForm() {
             onClick={() => fileInputRef.current?.click()}
             className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-14 text-center transition-all ${
               isDragging
-                ? "border-stone-400 bg-stone-50"
-                : "border-stone-200 bg-stone-50/40 hover:border-stone-300 hover:bg-stone-50"
+                ? "border-primary/40 bg-card"
+                : "border-border bg-transparent hover:border-border/80 hover:bg-card"
             }`}
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-              <CloudUpload className="h-5 w-5 text-stone-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border shadow-none">
+              <CloudUpload className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="mt-4 text-sm font-medium text-stone-700">
+            <p className="mt-4 text-sm font-medium text-foreground">
               Drag and drop or click to browse
             </p>
-            <p className="mt-1.5 text-xs text-stone-400">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               MP4 &middot; MP3 &middot; PDF &middot; DOCX
             </p>
           </div>
           {fileError && (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{fileError}</p>
+            <p className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {fileError}
+            </p>
           )}
           {isPendingFile && (
-            <p className="mt-3 flex items-center gap-2 text-sm text-stone-500">
+            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Uploading...
             </p>

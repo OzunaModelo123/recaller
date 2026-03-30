@@ -60,32 +60,32 @@ export default function SignupPage() {
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900/80 lg:block">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-sidebar via-sidebar to-card lg:block">
         <div className="grain absolute inset-0" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(217,170,100,0.15),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(120,80,40,0.2),transparent_60%)]" />
 
         <div className="relative z-10 flex h-full flex-col justify-between p-12">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-sm font-bold text-white backdrop-blur-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-accent text-sm font-bold text-sidebar-foreground backdrop-blur-sm">
               R
             </div>
-            <span className="text-lg font-semibold tracking-tight text-white">
+            <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">
               Recaller
             </span>
           </Link>
 
           <div className="max-w-md space-y-6">
-            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-white text-balance">
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-sidebar-foreground text-balance">
               Give your team training that actually works.
             </h1>
-            <p className="text-base leading-relaxed text-stone-300">
+            <p className="text-base leading-relaxed text-sidebar-foreground/70">
               Set up your organization in under a minute. Upload content, let AI generate
               plans, and start tracking real learning outcomes.
             </p>
           </div>
 
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-sidebar-foreground/70">
             &copy; {new Date().getFullYear()} Recaller. Built for teams that
             value real learning.
           </p>
@@ -98,16 +98,16 @@ export default function SignupPage() {
             href="/"
             className="flex items-center gap-2.5 lg:hidden"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-900 text-xs font-bold text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card text-xs font-bold text-foreground">
               R
             </div>
-            <span className="text-base font-semibold tracking-tight text-stone-900">
+            <span className="text-base font-semibold tracking-tight text-foreground">
               Recaller
             </span>
           </Link>
           <Link
             href="/login"
-            className="text-sm font-medium text-stone-500 transition-colors hover:text-stone-900"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Already have an account? &rarr;
           </Link>
@@ -117,10 +117,10 @@ export default function SignupPage() {
           <div className="w-full max-w-sm">
             <div className="space-y-8">
               <div className="space-y-2">
-                <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                   Create your organization
                 </h1>
-                <p className="text-sm text-stone-500">
+                <p className="text-sm text-muted-foreground">
                   For employers only. Employees join through invites sent from
                   Team settings.
                 </p>
@@ -129,37 +129,31 @@ export default function SignupPage() {
               <form className="space-y-5" onSubmit={onSubmit}>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-xs font-medium text-stone-600">
-                      Your full name
-                    </Label>
+                    <Label htmlFor="fullName">Your full name</Label>
                     <Input
                       id="fullName"
                       placeholder="Jane Smith"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+                      className="h-11 rounded-xl"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="orgName" className="text-xs font-medium text-stone-600">
-                      Organization
-                    </Label>
+                    <Label htmlFor="orgName">Organization</Label>
                     <Input
                       id="orgName"
                       placeholder="Acme Inc."
                       value={orgName}
                       onChange={(e) => setOrgName(e.target.value)}
-                      className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+                      className="h-11 rounded-xl"
                       required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-xs font-medium text-stone-600">
-                    Work email
-                  </Label>
+                  <Label htmlFor="email">Work email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -167,15 +161,13 @@ export default function SignupPage() {
                     placeholder="you@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+                    className="h-11 rounded-xl"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-xs font-medium text-stone-600">
-                    Password
-                  </Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     type="password"
@@ -184,7 +176,7 @@ export default function SignupPage() {
                     placeholder="Min. 8 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-11 rounded-xl border-stone-200 bg-white px-4 transition-all focus:border-stone-400 focus:ring-2 focus:ring-stone-200"
+                    className="h-11 rounded-xl"
                     required
                   />
                 </div>
@@ -201,7 +193,7 @@ export default function SignupPage() {
                 ) : null}
 
                 <Button
-                  className="h-11 w-full rounded-xl bg-stone-900 text-sm font-medium transition-all hover:bg-stone-800"
+                  className="h-11 w-full rounded-xl text-sm font-medium"
                   disabled={loading}
                   type="submit"
                 >
