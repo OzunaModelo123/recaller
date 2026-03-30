@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Database schema & conventions
 
-## 14 migrations (apply in order)
+## 16 migrations (apply in order)
 
 1. `001_core_identity` — organisations, users, invitations + pgvector extension
 2. `002_content_plans` — content_items, content_embeddings (VECTOR 1536), plans, plan_steps, plan_embeddings (VECTOR 1536) + HNSW indexes  
@@ -23,6 +23,8 @@ alwaysApply: false
 12. `012_match_embeddings_rpc` — `match_plan_embeddings` and `match_content_chunks` (SECURITY DEFINER, `org_id` must match caller’s org) for pgvector similarity from the app.
 13. `013_trackable_step_proof` — `plan_steps.proof_type` + `plan_steps.proof_instructions`; `step_completions.evidence` (JSONB); **UNIQUE** `(assignment_id, step_number)`; dedupe legacy duplicate completion rows before index.
 14. `014_assignments_assigner_note` — `assignments.assigner_note` (text, nullable) for manager message shown to assignee.
+15. `015_slack_installations_service_only` — drop `slack_installations_org_admin_select` so bot tokens are only accessible via `service_role` (app encrypts at rest when `SLACK_BOT_TOKEN_ENCRYPTION_KEY` is set).
+16. `016_slack_admin_channel_employee_link` — `organisations.slack_admin_channel_id` (admin read-only completion notices); `users.slack_employee_linked_at` (employee Connect Slack OAuth); `slack_installations.installation_kind` default `workspace`.
 
 **Design:** Plans have **2–10** behavioral steps. AI suggests count from content complexity; admins can edit before publish. Each step defines **proof** expectations for employee submissions (`evidence` JSONB on completions).
 

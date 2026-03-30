@@ -7,11 +7,15 @@ import { PageHeader } from "@/components/design/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { EmployeeSlackConnectPanel } from "@/components/employee/slack-connect-panel";
 import { fetchEmployeeAssignmentSummaries } from "@/lib/employee/assignment-summaries";
 import { getEmployeeSessionProfile } from "@/lib/employee/session-profile";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function MyPlansPage() {
+type Props = { searchParams: Promise<{ slack?: string; reason?: string }> };
+
+export default async function MyPlansPage({ searchParams }: Props) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { session },
@@ -21,6 +25,25 @@ export default async function MyPlansPage() {
 
   const profile = await getEmployeeSessionProfile(user.id, user.email);
   const sorted = await fetchEmployeeAssignmentSummaries(supabase, user.id);
+
+  const { data: slackState } = await supabase
+    .from("users")
+    .select("role, slack_employee_linked_at, organisations ( slack_team_id )")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const orgSlack =
+    slackState?.organisations &&
+    typeof slackState.organisations === "object" &&
+    "slack_team_id" in slackState.organisations
+      ? (slackState.organisations as { slack_team_id: string | null }).slack_team_id
+      : null;
+
+  const showEmployeeSlackConnect =
+    slackState &&
+    !["admin", "super_admin"].includes(slackState.role) &&
+    !!orgSlack &&
+    slackState.slack_employee_linked_at == null;
 
   return (
     <div className="space-y-8">
@@ -43,6 +66,13 @@ export default async function MyPlansPage() {
           }
         />
       </div>
+
+      {showEmployeeSlackConnect ? (
+        <EmployeeSlackConnectPanel
+          slackResult={params.slack ?? null}
+          slackReason={params.reason ?? null}
+        />
+      ) : null}
 
       {sorted.length === 0 ? (
         <EmptyState

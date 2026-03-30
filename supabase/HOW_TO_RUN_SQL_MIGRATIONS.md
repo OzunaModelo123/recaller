@@ -64,3 +64,28 @@ npx supabase db push
 
 `YOUR_PROJECT_REF` is the id in the project URL:  
 `https://supabase.com/dashboard/project/<THIS_PART>/...`
+
+## Sync repo migrations ↔ hosted DB (recommended)
+
+Use one of these so `supabase_migrations` matches `supabase/migrations/`:
+
+| Method | What to add |
+|--------|-------------|
+| **A. Postgres URL** | Dashboard → **Project Settings** → **Database** → copy **URI** (URI mode) into `.env.local` as `DATABASE_URL` (or `DIRECT_URL`). |
+| **B. Supabase access token** | Dashboard → **Account** → **Access Tokens** (or run `npx supabase login` once), then add `SUPABASE_ACCESS_TOKEN` to `.env.local`. `NEXT_PUBLIC_SUPABASE_URL` is used to derive the project ref, or set `SUPABASE_PROJECT_REF` explicitly. |
+
+Then from the repo root:
+
+```bash
+npm run db:sync
+```
+
+**Local Docker stack** (Supabase CLI + Postgres in containers):
+
+```bash
+npm run db:sync:local
+```
+
+Requires Docker Desktop (or `docker` on your PATH). Use this when you want a disposable local DB that matches migrations.
+
+**If `npm run db:sync` fails**, read the script’s error message — it lists which variables are missing. Never commit real tokens or database URLs.

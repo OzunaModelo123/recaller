@@ -8,6 +8,7 @@ import {
 } from "@/lib/proof";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
+import { notifyAdminSlackChannelOnCompletion } from "@/lib/notifications/notify-admin-slack";
 
 export const runtime = "nodejs";
 
@@ -163,6 +164,13 @@ export async function POST(request: Request) {
       .eq("id", assignmentId);
     if (!upErr) assignmentStatus = "completed";
   }
+
+  await notifyAdminSlackChannelOnCompletion({
+    orgId: assignment.org_id,
+    assignmentId,
+    stepNumber,
+    platform,
+  });
 
   return NextResponse.json({
     ok: true,

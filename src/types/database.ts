@@ -489,6 +489,7 @@ export type Database = {
           onboarding_completed: boolean
           org_context: Json
           size: string | null
+          slack_admin_channel_id: string | null
           slack_team_id: string | null
           teams_tenant_id: string | null
         }
@@ -501,6 +502,7 @@ export type Database = {
           onboarding_completed?: boolean
           org_context?: Json
           size?: string | null
+          slack_admin_channel_id?: string | null
           slack_team_id?: string | null
           teams_tenant_id?: string | null
         }
@@ -513,6 +515,7 @@ export type Database = {
           onboarding_completed?: boolean
           org_context?: Json
           size?: string | null
+          slack_admin_channel_id?: string | null
           slack_team_id?: string | null
           teams_tenant_id?: string | null
         }
@@ -698,6 +701,7 @@ export type Database = {
           bot_user_id: string | null
           created_at: string
           id: string
+          installation_kind: string
           installed_by: string | null
           org_id: string
           scopes: string[]
@@ -708,6 +712,7 @@ export type Database = {
           bot_user_id?: string | null
           created_at?: string
           id?: string
+          installation_kind?: string
           installed_by?: string | null
           org_id: string
           scopes?: string[]
@@ -718,6 +723,7 @@ export type Database = {
           bot_user_id?: string | null
           created_at?: string
           id?: string
+          installation_kind?: string
           installed_by?: string | null
           org_id?: string
           scopes?: string[]
@@ -889,6 +895,7 @@ export type Database = {
           notification_preferences: Json
           org_id: string
           role: string
+          slack_employee_linked_at: string | null
           slack_user_id: string | null
           teams_user_id: string | null
           title: string | null
@@ -902,6 +909,7 @@ export type Database = {
           notification_preferences?: Json
           org_id: string
           role?: string
+          slack_employee_linked_at?: string | null
           slack_user_id?: string | null
           teams_user_id?: string | null
           title?: string | null
@@ -915,6 +923,7 @@ export type Database = {
           notification_preferences?: Json
           org_id?: string
           role?: string
+          slack_employee_linked_at?: string | null
           slack_user_id?: string | null
           teams_user_id?: string | null
           title?: string | null

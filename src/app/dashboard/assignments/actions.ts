@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { notifySlackAssignmentOnCreate } from "@/lib/notifications/notify-employee-slack-assignment";
 import { createClient } from "@/lib/supabase/server";
 
 async function requireOrgAdmin() {
@@ -131,8 +132,23 @@ export async function createAssignmentsAction(input: {
     status: "active" as const,
   }));
 
-  const { error } = await ctx.supabase.from("assignments").insert(rows);
+  const { data: createdRows, error } = await ctx.supabase
+    .from("assignments")
+    .insert(rows)
+    .select("id, assigned_to");
   if (error) return { ok: false as const, error: error.message };
+
+  if (createdRows?.length) {
+    await Promise.allSettled(
+      createdRows.map((row) =>
+        notifySlackAssignmentOnCreate({
+          orgId: ctx.orgId!,
+          assignmentId: row.id,
+          assigneeUserId: row.assigned_to,
+        }),
+      ),
+    );
+  }
 
   revalidatePath("/dashboard/assignments");
   revalidatePath("/dashboard");
@@ -193,16 +209,28 @@ export async function assignPlanToEmployeeAction(input: {
 
   const note = input.assignerNote?.trim() || null;
 
-  const { error } = await ctx.supabase.from("assignments").insert({
-    org_id: ctx.orgId,
-    plan_id: planId,
-    assigned_to: employeeUserId,
-    assigned_by: ctx.userId,
-    assigner_note: note,
-    status: "active",
-  });
+  const { data: created, error } = await ctx.supabase
+    .from("assignments")
+    .insert({
+      org_id: ctx.orgId,
+      plan_id: planId,
+      assigned_to: employeeUserId,
+      assigned_by: ctx.userId,
+      assigner_note: note,
+      status: "active",
+    })
+    .select("id, assigned_to")
+    .single();
 
   if (error) return { ok: false as const, error: error.message };
+
+  if (created) {
+    await notifySlackAssignmentOnCreate({
+      orgId: ctx.orgId,
+      assignmentId: created.id,
+      assigneeUserId: created.assigned_to,
+    });
+  }
 
   revalidatePath(`/dashboard/plans/${planId}`);
   revalidatePath("/dashboard/assignments");
