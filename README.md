@@ -259,6 +259,20 @@ npm run dev
 
 <br />
 
+## Automated tests
+
+| Command | What it runs |
+|:--------|:-------------|
+| `npm run test` | **Vitest** — fast unit tests (`src/**/*.test.ts`), e.g. `src/lib/proof.ts` evidence rules aligned with the completions API. |
+| `npm run build` then `npm run test:e2e` | **Playwright** — starts `next start` on **`127.0.0.1:3333`** (avoids clashing with `npm run dev` on port 3000). Covers public pages, unauthenticated redirects for `/dashboard` and `/employee/*`, and **contract smoke** for `POST /api/plans/generate` (401 without session, 400 for bad body — no Anthropic/OpenAI calls). |
+| `npm run test:ci` | Same sequence as GitHub Actions: `lint` → `test` → `build` → `test:e2e`. |
+
+**GitHub Actions:** Copy `docs/github-actions-ci.yml` to `.github/workflows/ci.yml` and commit (from your machine or the GitHub UI). That workflow runs lint, Vitest, build, and Playwright on pushes and PRs to `main`, using placeholder Supabase env vars so the app can build and start without real secrets. Some CI tokens cannot push workflow files unless the OAuth app includes the **`workflow`** scope.
+
+**Not in CI:** A full “admin invites → email link → set password → My Plans” flow needs a real Supabase project and mail; run that manually or extend Playwright with a dedicated test project and seeded users when you are ready.
+
+<br />
+
 ## Project Structure
 
 ```

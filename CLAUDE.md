@@ -18,6 +18,8 @@
 
 **Dev server:** After finishing an implementation update, **always restart the dev server** (`npm run dev`) so the user can immediately see changes. Kill any existing dev process first, then start fresh. The user should never have to start the server manually.
 
+**Tests:** `npm run test` (Vitest unit), `npm run build && npm run test:e2e` (Playwright on port **3333** via `next start`), `npm run test:ci` (full local CI). GitHub Actions template: `docs/github-actions-ci.yml` → copy to `.github/workflows/ci.yml`.
+
 **Git / GitHub:** Do **not** push or open PRs to the remote repo until the **current phase** is finished and **`recaller-project.mdc`** marks it done (no mid-phase pushes unless the user explicitly asks). When a phase **is** complete: audit staged files → conventional commit → push → verify. Never commit `.env.local`.
 
 **Supabase / secrets:** Prefer Supabase Dashboard SQL Editor or a linked local CLI for migrations. This environment does not install Supabase MCP automatically; add a Supabase MCP in Cursor settings if you want dashboard-style tools in chat. Never paste live API keys or service-role tokens into chat or commit them.
