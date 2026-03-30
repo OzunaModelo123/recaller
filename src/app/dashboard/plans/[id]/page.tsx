@@ -5,9 +5,15 @@ import { ArrowLeft } from "lucide-react";
 import type { ContentAnalysis } from "@/lib/ai/contentAnalyzer";
 import { parseOrgContext } from "@/lib/ai/orgContext";
 import type { ValidationResult } from "@/lib/ai/planValidator";
+import {
+  CompletionFunnel,
+  type FunnelStepDatum,
+} from "@/components/dashboard/completion-funnel";
+import { fetchPlanAssignCandidates } from "@/lib/dashboard/plan-assign-candidates";
 import { defaultProofForStep } from "@/lib/proof";
 import { createClient } from "@/lib/supabase/server";
 
+import { PlanAssignSheet } from "./plan-assign-sheet";
 import { PlanEditor } from "./plan-editor";
 
 type Props = { params: Promise<{ id: string }> };
@@ -68,21 +74,29 @@ export default async function PlanDetailPage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: plan, error } = await supabase
-    .from("plans")
-    .select(
-      "id, title, target_role, is_template, content_item_id, content_analysis, quality_scores, original_ai_draft, current_version",
-    )
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error || !plan) notFound();
-
   const { data: profile } = await supabase
     .from("users")
     .select("org_id")
     .eq("id", user.id)
     .single();
+
+  const { data: plan, error } = await supabase
+    .from("plans")
+    .select(
+      "id, title, target_role, is_template, content_item_id, content_analysis, quality_scores, original_ai_draft, current_version, org_id",
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !plan) notFound();
+  if (profile?.org_id && plan.org_id !== profile.org_id) {
+    notFound();
+  }
+
+  const assignCandidates =
+    profile?.org_id != null
+      ? await fetchPlanAssignCandidates(supabase, profile.org_id)
+      : [];
 
   const { data: steps } = await supabase
     .from("plan_steps")
@@ -138,6 +152,33 @@ export default async function PlanDetailPage({ params }: Props) {
       };
     }) ?? [];
 
+  const n = stepRows.length;
+  let funnelData: FunnelStepDatum[] = [];
+  if (profile?.org_id && n > 0) {
+    const { data: assignRows } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("plan_id", id)
+      .eq("org_id", profile.org_id)
+      .neq("status", "cancelled");
+    const aids = (assignRows ?? []).map((a) => a.id);
+    const counts = new Array<number>(n).fill(0);
+    if (aids.length > 0) {
+      const { data: compRows } = await supabase
+        .from("step_completions")
+        .select("step_number")
+        .in("assignment_id", aids);
+      for (const c of compRows ?? []) {
+        const i = c.step_number - 1;
+        if (i >= 0 && i < n) counts[i] += 1;
+      }
+    }
+    funnelData = counts.map((completed, idx) => ({
+      stepLabel: `Step ${idx + 1}`,
+      completed,
+    }));
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -148,9 +189,22 @@ export default async function PlanDetailPage({ params }: Props) {
           <ArrowLeft className="h-3.5 w-3.5" />
           Plans
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          {plan.title}
-        </h1>
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            {plan.title}
+          </h1>
+          {profile?.org_id ? (
+            <PlanAssignSheet
+              planId={plan.id}
+              planTitle={plan.title}
+              candidates={assignCandidates}
+            />
+          ) : null}
+        </div>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+          When this plan is ready, use Assign to employee so it appears in their My Plans and home
+          overview.
+        </p>
       </div>
 
       <PlanEditor
@@ -167,6 +221,14 @@ export default async function PlanDetailPage({ params }: Props) {
         quality={asValidation(plan.quality_scores)}
         analysis={asAnalysis(plan.content_analysis)}
       />
+
+      {funnelData.length > 0 ? (
+        <CompletionFunnel
+          title="Team completion funnel"
+          subtitle="How many step completions were recorded per step across all non-cancelled assignments for this plan."
+          data={funnelData}
+        />
+      ) : null}
     </div>
   );
 }

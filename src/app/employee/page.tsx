@@ -27,17 +27,19 @@ import { createClient } from "@/lib/supabase/server";
 export default async function EmployeeHomePage() {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) redirect("/login");
 
-  const profile = await getEmployeeSessionProfile(user.id);
+  const profile = await getEmployeeSessionProfile(user.id, user.email);
   if (!profile) redirect("/post-login");
 
   const summaries = await fetchEmployeeAssignmentSummaries(supabase, user.id);
   const next = pickNextAssignment(summaries);
   const active = summaries.filter(isActiveAssignment);
   const completed = summaries.filter((s) => s.label === "Completed");
+  const overdue = active.filter((s) => s.label === "Overdue");
   const preview = summaries.slice(0, 4);
 
   return (
@@ -101,7 +103,7 @@ export default async function EmployeeHomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={<ClipboardList className="h-5 w-5" />}
           value={String(active.length)}
@@ -111,6 +113,11 @@ export default async function EmployeeHomePage() {
           icon={<CheckCircle2 className="h-5 w-5" />}
           value={String(completed.length)}
           label="Completed"
+        />
+        <StatCard
+          icon={<ListChecks className="h-5 w-5" />}
+          value={String(overdue.length)}
+          label="Overdue"
         />
         <StatCard
           icon={<BookOpen className="h-5 w-5" />}
@@ -138,6 +145,12 @@ export default async function EmployeeHomePage() {
                       ` · Due ${new Date(next.due).toLocaleDateString()}`
                     ) : null}
                   </p>
+                  {next.assignerNote?.trim() ? (
+                    <p className="text-sm leading-snug text-foreground/85">
+                      <span className="font-medium text-muted-foreground">Manager note: </span>
+                      {next.assignerNote.trim()}
+                    </p>
+                  ) : null}
                   <Progress
                     value={next.total > 0 ? (next.done / next.total) * 100 : 0}
                     className="max-w-md"
@@ -204,6 +217,12 @@ export default async function EmployeeHomePage() {
                             </div>
                           ) : null}
                           <p className="font-medium text-foreground">{r.title}</p>
+                          {r.assignerNote?.trim() ? (
+                            <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">
+                              <span className="font-medium text-foreground/75">Note: </span>
+                              {r.assignerNote.trim()}
+                            </p>
+                          ) : null}
                           {r.due ? (
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               Due {new Date(r.due).toLocaleDateString()}

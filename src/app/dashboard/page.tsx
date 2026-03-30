@@ -9,9 +9,21 @@ import {
   TrendingUp,
   Activity,
   Zap,
+  ClipboardList,
+  AlertCircle,
+  UserCircle,
 } from "lucide-react";
+
 import { HeroPanelCta } from "@/components/design/hero-panel-cta";
+import {
+  completionPercent,
+  evidenceSummary,
+  trafficDotClass,
+  trafficTier,
+} from "@/lib/dashboard/evidence-summary";
 import { createClient } from "@/lib/supabase/server";
+import { unwrapRelation } from "@/lib/supabase/unwrap-relation";
+import type { Json } from "@/types/database";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -45,7 +57,7 @@ const steps = [
   },
   {
     title: "Assign to your team",
-    description: "Distribute plans via Slack, Teams, or email and track completion.",
+    description: "Distribute plans and track completion with evidence.",
     icon: Send,
     href: "/dashboard/assignments",
     accent: "from-primary/18 via-secondary/10 to-transparent",
@@ -54,11 +66,29 @@ const steps = [
   },
 ];
 
+function fmtWhen(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatRole(role: string): string {
+  return role.replace(/_/g, " ");
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
 
   let fullName = "there";
   let orgName = "your organization";
@@ -104,12 +134,244 @@ export default async function DashboardPage() {
     contentCountLabel = String(contentCount ?? 0);
     teamCountLabel = String(teamCount ?? 0);
   }
+
   const greeting = getGreeting();
   const firstName = getFirstName(fullName);
 
+  let totalActivePlans = 0;
+  let overallPct = 0;
+  let employeesEngaged = 0;
+  let overdueCount = 0;
+  let recentFeed: {
+    when: string;
+    who: string;
+    plan: string;
+    step: number;
+    evidence: string;
+  }[] = [];
+  let planCards: {
+    planId: string;
+    title: string;
+    assignmentCount: number;
+    pct: number;
+    tier: ReturnType<typeof trafficTier>;
+  }[] = [];
+
+  let memberAssignmentRows: {
+    assignmentId: string;
+    memberName: string;
+    memberId: string;
+    roleLabel: string;
+    groupLabel: string;
+    planTitle: string;
+    planId: string;
+    status: string;
+  }[] = [];
+
+  if (isAdmin && orgId) {
+    const { data: assignments } = await supabase
+      .from("assignments")
+      .select(
+        `
+        id,
+        plan_id,
+        status,
+        due_date,
+        assigned_to,
+        group_id,
+        plans ( title ),
+        assignee:users!assignments_assigned_to_fkey ( id, full_name, email, role ),
+        groups ( name )
+      `,
+      )
+      .eq("org_id", orgId);
+
+    const activePlanIds = new Set(
+      (assignments ?? [])
+        .filter((a) => a.status === "active")
+        .map((a) => a.plan_id),
+    );
+    totalActivePlans = activePlanIds.size;
+
+    overdueCount = (assignments ?? []).filter((a) => {
+      if (a.status !== "active" || !a.due_date) return false;
+      // Server snapshot: compare due date string to "now" in ISO (UTC) for stable lint/purity.
+      return a.due_date < new Date().toISOString();
+    }).length;
+
+    const nonCancelled = (assignments ?? []).filter(
+      (a) => a.status !== "cancelled",
+    );
+    const planIds = [...new Set(nonCancelled.map((a) => a.plan_id))];
+    const nByPlan = new Map<string, number>();
+    if (planIds.length > 0) {
+      const { data: stepRows } = await supabase
+        .from("plan_steps")
+        .select("plan_id")
+        .in("plan_id", planIds);
+      for (const s of stepRows ?? []) {
+        nByPlan.set(s.plan_id, (nByPlan.get(s.plan_id) ?? 0) + 1);
+      }
+    }
+
+    const assignmentById = new Map(
+      nonCancelled.map((a) => [a.id, a] as const),
+    );
+    const aIds = nonCancelled.map((a) => a.id);
+
+    let expected = 0;
+    for (const a of nonCancelled) {
+      expected += nByPlan.get(a.plan_id) ?? 0;
+    }
+
+    const countByAssignment = new Map<string, number>();
+    let allStepCompletions: {
+      assignment_id: string;
+      completed_at: string;
+      step_number: number;
+      evidence: unknown;
+    }[] = [];
+
+    if (aIds.length > 0) {
+      const { data: sc } = await supabase
+        .from("step_completions")
+        .select("assignment_id, completed_at, step_number, evidence")
+        .in("assignment_id", aIds)
+        .order("completed_at", { ascending: false });
+      allStepCompletions = sc ?? [];
+      for (const c of allStepCompletions) {
+        countByAssignment.set(
+          c.assignment_id,
+          (countByAssignment.get(c.assignment_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    const completed = allStepCompletions.length;
+    overallPct = completionPercent(completed, expected);
+
+    const engaged = new Set<string>();
+    for (const c of allStepCompletions) {
+      const row = assignmentById.get(c.assignment_id);
+      if (row) engaged.add(row.assigned_to);
+    }
+    employeesEngaged = engaged.size;
+
+    const recent = allStepCompletions.slice(0, 10);
+    const enrichMap = new Map<
+      string,
+      { planTitle: string; assigneeName: string }
+    >();
+    for (const row of assignments ?? []) {
+      const plan = unwrapRelation(
+        row.plans as unknown as { title: string } | { title: string }[] | null,
+      );
+      const assignee = unwrapRelation(
+        row.assignee as unknown as
+          | { full_name: string | null; email: string }
+          | { full_name: string | null; email: string }[]
+          | null,
+      );
+      enrichMap.set(row.id, {
+        planTitle: plan?.title ?? "Plan",
+        assigneeName: assignee?.full_name?.trim() || assignee?.email || "—",
+      });
+    }
+
+    recentFeed = recent
+      .map((r) => {
+        const e = enrichMap.get(r.assignment_id);
+        if (!e) return null;
+        return {
+          when: fmtWhen(r.completed_at),
+          who: e.assigneeName,
+          plan: e.planTitle,
+          step: r.step_number,
+          evidence: evidenceSummary(r.evidence as Json),
+        };
+      })
+      .filter(Boolean) as typeof recentFeed;
+
+    memberAssignmentRows = (assignments ?? [])
+      .filter((a) => a.status !== "cancelled")
+      .map((row) => {
+        const plan = unwrapRelation(
+          row.plans as unknown as { title: string } | { title: string }[] | null,
+        );
+        const assignee = unwrapRelation(
+          row.assignee as unknown as
+            | { id: string; full_name: string | null; email: string; role: string }
+            | {
+                id: string;
+                full_name: string | null;
+                email: string;
+                role: string;
+              }[]
+            | null,
+        );
+        const grp = unwrapRelation(
+          row.groups as unknown as { name: string } | { name: string }[] | null,
+        );
+        const groupLabel = row.group_id
+          ? grp?.name?.trim() || "Group"
+          : "Direct assign";
+        return {
+          assignmentId: row.id,
+          memberName: assignee?.full_name?.trim() || assignee?.email || "—",
+          memberId: assignee?.id ?? row.assigned_to,
+          roleLabel: formatRole(assignee?.role ?? "member"),
+          groupLabel,
+          planTitle: plan?.title ?? "Plan",
+          planId: row.plan_id,
+          status: row.status,
+        };
+      })
+      .sort((a, b) =>
+        a.memberName.localeCompare(b.memberName, undefined, {
+          sensitivity: "base",
+        }),
+      );
+
+    const byPlan = new Map<string, { assignmentIds: string[] }>();
+    for (const a of nonCancelled) {
+      const cur = byPlan.get(a.plan_id) ?? { assignmentIds: [] };
+      cur.assignmentIds.push(a.id);
+      byPlan.set(a.plan_id, cur);
+    }
+
+    if (byPlan.size > 0) {
+      const { data: titles } = await supabase
+        .from("plans")
+        .select("id, title")
+        .in("id", [...byPlan.keys()]);
+
+      const titleById = new Map((titles ?? []).map((t) => [t.id, t.title] as const));
+
+      planCards = [...byPlan.entries()].map(([planId, v]) => {
+        let exp = 0;
+        let comp = 0;
+        const n = nByPlan.get(planId) ?? 0;
+        for (const aid of v.assignmentIds) {
+          exp += n;
+          comp += countByAssignment.get(aid) ?? 0;
+        }
+        const pct = completionPercent(comp, exp);
+        const tier = trafficTier(exp > 0 ? comp / exp : 0);
+        return {
+          planId,
+          title: titleById.get(planId) ?? "Plan",
+          assignmentCount: v.assignmentIds.length,
+          pct,
+          tier,
+        };
+      });
+
+      planCards.sort((a, b) => b.assignmentCount - a.assignmentCount);
+    }
+  }
+
   return (
     <div className="space-y-10">
-      {/* Hero */}
       <div className="relative overflow-hidden rounded-xl bg-sidebar px-8 py-10 shadow-lg">
         <div className="grain absolute inset-0 rounded-xl" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(232,115,74,0.15),transparent_50%)]" />
@@ -128,6 +390,11 @@ export default async function DashboardPage() {
               : "Complete your assigned training plans and build real skills, one step at a time."}
           </p>
           {isAdmin && (
+            <p className="mt-2 text-xs text-sidebar-foreground/55">
+              Library: {contentCountLabel} items · Roster: {teamCountLabel} people
+            </p>
+          )}
+          {isAdmin && (
             <HeroPanelCta
               href="/dashboard/content/upload"
               className="mt-6"
@@ -139,45 +406,194 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[
-          {
-            label: "Content Items",
-            value: contentCountLabel,
-            icon: BookOpen,
-          },
-          {
-            label: "Team Members",
-            value: teamCountLabel,
-            icon: Users,
-          },
-          {
-            label: "Completion Rate",
-            value: "0%",
-            icon: TrendingUp,
-          },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="group rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                <p className="mt-1.5 text-3xl font-semibold tracking-tight text-foreground">
-                  {stat.value}
-                </p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
-                <stat.icon className="h-5 w-5 text-primary" />
+      {isAdmin && orgId ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Active plans",
+              value: String(totalActivePlans),
+              hint: "Plans with at least one active assignment",
+              icon: ClipboardList,
+            },
+            {
+              label: "Overall completion",
+              value: `${overallPct}%`,
+              hint: "Steps done ÷ expected steps (per-plan N)",
+              icon: TrendingUp,
+            },
+            {
+              label: "Employees engaged",
+              value: String(employeesEngaged),
+              hint: "People with ≥1 completed step",
+              icon: Users,
+            },
+            {
+              label: "Overdue assignments",
+              value: String(overdueCount),
+              hint: "Active & past due date",
+              icon: AlertCircle,
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="group rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                  <p className="mt-1.5 text-3xl font-semibold tracking-tight text-foreground">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80">
+                    {stat.hint}
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
+                  <stat.icon className="h-5 w-5 text-primary" />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[
+            { label: "Content Items", value: contentCountLabel, icon: BookOpen },
+            { label: "Team Members", value: teamCountLabel, icon: Users },
+            { label: "Completion Rate", value: "0%", icon: TrendingUp },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="group rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                  <p className="mt-1.5 text-3xl font-semibold tracking-tight text-foreground">
+                    {stat.value}
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
+                  <stat.icon className="h-5 w-5 text-primary" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Getting started */}
+      {isAdmin && orgId && planCards.length > 0 ? (
+        <div className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Plans in motion
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Completion rate uses each plan&apos;s step count (dynamic N).
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {planCards.map((p) => (
+              <Link
+                key={p.planId}
+                href={`/dashboard/plans/${p.planId}`}
+                className="group rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 hover:border-primary/20"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary">
+                      {p.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {p.assignmentCount} assignment
+                      {p.assignmentCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <span
+                    className={`mt-0.5 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${trafficDotClass(p.tier)}`}
+                    title="Traffic light"
+                  />
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min(100, p.pct)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                    {p.pct}%
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
+                  View plan
+                  <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {isAdmin && orgId && memberAssignmentRows.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary">
+              <UserCircle className="h-[18px] w-[18px] text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Assignments by member
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Who has each plan, their role, and whether it came from a group or a direct assign.
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">Member</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">Group</th>
+                  <th className="px-4 py-3 font-medium">Plan</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-muted-foreground">
+                {memberAssignmentRows.map((r) => (
+                  <tr
+                    key={r.assignmentId}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/dashboard/team/${r.memberId}`}
+                        className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+                      >
+                        {r.memberName}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 capitalize">{r.roleLabel}</td>
+                    <td className="px-4 py-3">{r.groupLabel}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/dashboard/plans/${r.planId}`}
+                        className="text-foreground underline-offset-4 hover:text-primary hover:underline"
+                      >
+                        <span className="line-clamp-2">{r.planTitle}</span>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 capitalize">{r.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
       {isAdmin && (
         <div className="space-y-5">
           <div>
@@ -222,19 +638,41 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Activity + Insights */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <Activity className="h-4 w-4 text-primary" />
             </div>
-            <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
+            <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
           </div>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            No activity yet. Once your team starts completing plans, their progress
-            will appear here.
-          </p>
+          {isAdmin && orgId && recentFeed.length > 0 ? (
+            <ul className="mt-4 space-y-3 text-sm">
+              {recentFeed.map((r, i) => (
+                <li
+                  key={`${r.when}-${r.who}-${i}`}
+                  className="rounded-lg border border-border/80 bg-background/50 px-3 py-2.5"
+                >
+                  <p className="text-xs text-muted-foreground">{r.when}</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {r.who}{" "}
+                    <span className="font-normal text-muted-foreground">completed</span>{" "}
+                    step {r.step}{" "}
+                    <span className="font-normal text-muted-foreground">on</span>{" "}
+                    {r.plan}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Evidence: {r.evidence}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              No activity yet. Once your team starts completing plans, their progress
+              will appear here.
+            </p>
+          )}
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">

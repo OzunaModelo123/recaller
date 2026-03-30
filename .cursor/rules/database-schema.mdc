@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Database schema & conventions
 
-## 13 migrations (apply in order)
+## 14 migrations (apply in order)
 
 1. `001_core_identity` — organisations, users, invitations + pgvector extension
 2. `002_content_plans` — content_items, content_embeddings (VECTOR 1536), plans, plan_steps, plan_embeddings (VECTOR 1536) + HNSW indexes  
@@ -22,6 +22,7 @@ alwaysApply: false
 11. `011_create_organisation_for_signup` — optional `create_organisation_for_signup(text)` SECURITY DEFINER RPC; the app provisions with **service role** instead so this is not required for signup.
 12. `012_match_embeddings_rpc` — `match_plan_embeddings` and `match_content_chunks` (SECURITY DEFINER, `org_id` must match caller’s org) for pgvector similarity from the app.
 13. `013_trackable_step_proof` — `plan_steps.proof_type` + `plan_steps.proof_instructions`; `step_completions.evidence` (JSONB); **UNIQUE** `(assignment_id, step_number)`; dedupe legacy duplicate completion rows before index.
+14. `014_assignments_assigner_note` — `assignments.assigner_note` (text, nullable) for manager message shown to assignee.
 
 **Design:** Plans have **2–10** behavioral steps. AI suggests count from content complexity; admins can edit before publish. Each step defines **proof** expectations for employee submissions (`evidence` JSONB on completions).
 

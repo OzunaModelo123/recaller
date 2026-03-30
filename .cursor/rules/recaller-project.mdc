@@ -39,15 +39,15 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Active implementation focus
 
-**Phase 5 — Manager Dashboard + Distribution** (next in sequence): manager evidence/history feeds and dynamic completion funnels based on per-plan step count N. Do not build Phase 6–7 features early.
+**Phase 6 — Slack Bot** (next in sequence): employee plan delivery and N-step completion in Slack with shared `POST /api/completions` (`platform: slack`) and evidence. Do not build Phase 7 early.
 
 ## Phase status
 
-**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + proxy gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save). Phase 4 (Employee Web Interface — assignments list + N-step progress + per-step proof/evidence UI, `plan_steps.proof_type/proof_instructions`, `step_completions.evidence`, and `POST /api/completions` with `platform: web`).
+**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + proxy gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save). Phase 4 (Employee Web Interface — assignments list + N-step progress + per-step proof/evidence UI, `plan_steps.proof_type/proof_instructions`, `step_completions.evidence`, and `POST /api/completions` with `platform: web`). Phase 5 (Manager Dashboard + Distribution — `/dashboard` org metrics with dynamic N-based completion, recent activity feed with evidence summaries, `/dashboard/plans/[id]` completion funnel chart, `/dashboard/assignments` create/cancel/bulk cancel + groups, `/dashboard/team` performance table with date filter + CSV + per-employee evidence history at `/dashboard/team/[id]`).
 
 **Deferred env:** `STRIPE_WEBHOOK_SECRET` (9), `SLACK_BOT_TOKEN` / `SLACK_STATE_SECRET` (6), `TEAMS_*` (7), `SENTRY_AUTH_TOKEN` (12).
 
-**Next:** Phase 5 — Manager Dashboard + Distribution → plan section `### Phase 5: Manager Dashboard + Distribution`.
+**Next:** Phase 6 — Slack Bot → plan section `### Phase 6: Slack Bot`.
 
 ## When you finish or start a phase
 

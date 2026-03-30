@@ -14,11 +14,12 @@ import { createClient } from "@/lib/supabase/server";
 export default async function MyPlansPage() {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) redirect("/login");
 
-  const profile = await getEmployeeSessionProfile(user.id);
+  const profile = await getEmployeeSessionProfile(user.id, user.email);
   const sorted = await fetchEmployeeAssignmentSummaries(supabase, user.id);
 
   return (
@@ -60,6 +61,12 @@ export default async function MyPlansPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-foreground">{r.title}</p>
+                        {r.assignerNote?.trim() ? (
+                          <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">
+                            <span className="font-medium text-foreground/80">Note: </span>
+                            {r.assignerNote.trim()}
+                          </p>
+                        ) : null}
                         {r.due && (
                           <p className="mt-1 text-xs text-muted-foreground">
                             Due {new Date(r.due).toLocaleDateString(undefined, {

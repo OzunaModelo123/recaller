@@ -20,14 +20,14 @@ export default async function EmployeeLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) {
     redirect("/login");
   }
 
-  const profile = await getEmployeeSessionProfile(user.id);
+  const profile = await getEmployeeSessionProfile(user.id, user.email);
 
   if (!profile) {
     redirect("/post-login");

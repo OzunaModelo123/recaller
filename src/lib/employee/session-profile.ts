@@ -25,12 +25,11 @@ function initialsFromName(fullName: string): string {
  * Per-request cached profile + org for employee layout and pages (single round-trip when both run).
  */
 export const getEmployeeSessionProfile = cache(
-  async (userId: string): Promise<EmployeeSessionProfile | null> => {
+  async (
+    userId: string,
+    sessionEmail?: string | null,
+  ): Promise<EmployeeSessionProfile | null> => {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user || user.id !== userId) return null;
 
     const { data: row } = await supabase
       .from("users")
@@ -53,12 +52,13 @@ export const getEmployeeSessionProfile = cache(
         ? String((row.organisations as { name: string }).name)
         : "Your organization";
 
-    const fullName = row.full_name || user.email?.split("@")[0] || "User";
+    const fullName =
+      row.full_name || sessionEmail?.split("@")[0] || "User";
     const firstName = fullName.split(/\s+/)[0] || fullName;
 
     return {
       userId,
-      email: user.email,
+      email: sessionEmail ?? undefined,
       fullName,
       firstName,
       initials: initialsFromName(fullName),

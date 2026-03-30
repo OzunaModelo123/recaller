@@ -11,13 +11,14 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
   const { id: assignmentId } = await params;
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) redirect("/login");
 
   const { data: assignment, error: aErr } = await supabase
     .from("assignments")
-    .select("id, assigned_to, plan_id, status")
+    .select("id, assigned_to, plan_id, status, assigner_note")
     .eq("id", assignmentId)
     .maybeSingle();
 
@@ -94,6 +95,7 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
       steps={steps}
       initialCompleted={initialCompleted}
       videoWatchBaseUrl={videoWatchBaseUrl}
+      assignerNote={assignment.assigner_note}
     />
   );
 }

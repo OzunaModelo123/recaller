@@ -33,6 +33,8 @@ type Props = {
   steps: EmployeePlanStep[];
   initialCompleted: number[];
   videoWatchBaseUrl: string | null;
+  /** Optional message from admin when the plan was assigned. */
+  assignerNote?: string | null;
 };
 
 export function AssignmentStepFlow({
@@ -41,6 +43,7 @@ export function AssignmentStepFlow({
   steps,
   initialCompleted,
   videoWatchBaseUrl,
+  assignerNote,
 }: Props) {
   const router = useRouter();
   const [completed, setCompleted] = useState<Set<number>>(
@@ -178,6 +181,17 @@ export function AssignmentStepFlow({
           </div>
         </div>
       </div>
+
+      {assignerNote?.trim() ? (
+        <div className="rounded-xl border border-primary/25 bg-primary/6 px-4 py-3.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+            Note from your manager
+          </p>
+          <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+            {assignerNote.trim()}
+          </p>
+        </div>
+      ) : null}
 
       {currentStep && (
         <Card className="shadow-none">

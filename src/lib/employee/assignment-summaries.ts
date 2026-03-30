@@ -22,6 +22,8 @@ export type EmployeeAssignmentSummary = {
   due: string | null;
   label: AssignmentStatusLabel;
   variant: AssignmentSummaryVariant;
+  /** Message from admin when assigning; shown on My Plans and assignment view. */
+  assignerNote: string | null;
 };
 
 export function assignmentStatusMeta(
@@ -61,6 +63,7 @@ export async function fetchEmployeeAssignmentSummaries(
       status,
       created_at,
       plan_id,
+      assigner_note,
       plans (
         title
       )
@@ -104,6 +107,7 @@ export async function fetchEmployeeAssignmentSummaries(
         due: a.due_date,
         label,
         variant,
+        assignerNote: a.assigner_note ?? null,
       };
     }),
   );
