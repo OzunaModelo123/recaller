@@ -1,7 +1,7 @@
 import type { ContentAnalysis } from "./contentAnalyzer";
 import type { GeneratedPlan } from "./planGenerator";
 import type { OrgContext } from "./orgContext";
-import { VALIDATION_MODEL, aiClient } from "./modelRouter";
+import { VALIDATION_MODEL, openaiClient } from "./modelRouter";
 
 export type ValidationResult = {
   scores: {
@@ -83,7 +83,7 @@ Score each dimension 1-5:
 2. specificity: Are instructions concrete enough to follow without interpretation? (No vague 'reflect on...' or 'think about...')
 3. progressiveness: Does each step build meaningfully on the previous one?
 4. feasibility: Can Step 1 realistically be done in 15 minutes during a normal workday?
-5. measurability: Can a manager objectively verify each success criteria was met?
+5. measurability: Can a manager objectively verify each success criteria was met? Also score whether each step is trackable in Recaller: proof_type and proof_instructions must match the action; evidence can be collected on the web app (text, link, file path later); a manager could judge a real submission.
 
 Also flag: does any step suggest a forbidden activity?
 
@@ -91,7 +91,7 @@ Return JSON matching the schema: scores (integers 1-5), overall_score (average o
 
   const user = `THE PLAN TO EVALUATE:\n${JSON.stringify(plan)}`;
 
-  const completion = await aiClient.chat.completions.create({
+  const completion = await openaiClient.chat.completions.create({
     model: VALIDATION_MODEL,
     messages: [
       { role: "system", content: system },

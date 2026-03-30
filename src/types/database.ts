@@ -567,6 +567,8 @@ export type Database = {
           id: string
           instructions: string
           plan_id: string
+          proof_instructions: string
+          proof_type: string
           step_number: number
           success_criteria: string
           title: string
@@ -579,6 +581,8 @@ export type Database = {
           id?: string
           instructions: string
           plan_id: string
+          proof_instructions?: string
+          proof_type?: string
           step_number: number
           success_criteria: string
           title: string
@@ -591,6 +595,8 @@ export type Database = {
           id?: string
           instructions?: string
           plan_id?: string
+          proof_instructions?: string
+          proof_type?: string
           step_number?: number
           success_criteria?: string
           title?: string
@@ -736,6 +742,7 @@ export type Database = {
           assignment_id: string
           completed_at: string
           difficulty_rating: number | null
+          evidence: Json
           id: string
           note: string | null
           platform_completed_on: string | null
@@ -745,6 +752,7 @@ export type Database = {
           assignment_id: string
           completed_at?: string
           difficulty_rating?: number | null
+          evidence?: Json
           id?: string
           note?: string | null
           platform_completed_on?: string | null
@@ -754,6 +762,7 @@ export type Database = {
           assignment_id?: string
           completed_at?: string
           difficulty_rating?: number | null
+          evidence?: Json
           id?: string
           note?: string | null
           platform_completed_on?: string | null
@@ -922,6 +931,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auth_user_org_id: { Args: never; Returns: string }
+      create_organisation_for_signup: {
+        Args: { org_name: string }
+        Returns: string
+      }
       match_content_chunks: {
         Args: {
           p_match_count?: number

@@ -10,6 +10,8 @@
 
 **Conventions:** `org_id` + RLS · Server Components by default · no `service_role` in browser · Inngest for jobs.
 
+**Trackable steps & proof (mirror `recaller-project.mdc`):** Plans are **2–10** steps (dynamic **N**). After migration **013+**: proof fields on `plan_steps`, `evidence` JSONB on `step_completions`, shared completions API for web + Slack + Teams. Full detail lives in the local build guide `### Phase 3`–`### Phase 8`, not here.
+
 **Dev server:** After finishing an implementation update, **always restart the dev server** (`npm run dev`) so the user can immediately see changes. Kill any existing dev process first, then start fresh. The user should never have to start the server manually.
 
 **Git / GitHub:** Do **not** push or open PRs to the remote repo until the **current phase** is finished and **`recaller-project.mdc`** marks it done (no mid-phase pushes unless the user explicitly asks). When a phase **is** complete: audit staged files → conventional commit → push → verify. Never commit `.env.local`.
@@ -18,4 +20,4 @@
 
 **CLI:** GitHub CLI may live at `/tmp/gh_2.89.0_macOS_arm64/bin/gh` on this machine; use `gh` if it is on your `PATH`.
 
-**Status (mirror `recaller-project.mdc`):** Phases 0–3 done; **next Phase 4** (Employee Web Interface). Repo: https://github.com/OzunaModelo123/recaller
+**Status (mirror `recaller-project.mdc`):** Phases 0–4 done; **next Phase 5** (Manager Dashboard + Distribution — evidence feeds and dynamic completion funnels). Repo: https://github.com/OzunaModelo123/recaller

@@ -172,7 +172,17 @@ export async function POST(request: Request) {
           complexity: plan.complexity,
           skill_level: plan.skill_level,
           target_role: plan.target_role,
-          steps: plan.steps,
+          steps: plan.steps.map((s) => ({
+            step_number: s.step_number,
+            title: s.title,
+            instructions: s.instructions,
+            success_criteria: s.success_criteria,
+            video_timestamp_start: s.video_timestamp_start,
+            video_timestamp_end: s.video_timestamp_end,
+            estimated_minutes: s.estimated_minutes,
+            proof_type: s.proof_type,
+            proof_instructions: s.proof_instructions,
+          })),
         };
 
         const { data: inserted, error: insPlanErr } = await supabase
@@ -210,6 +220,8 @@ export async function POST(request: Request) {
           video_timestamp_start: s.video_timestamp_start,
           video_timestamp_end: s.video_timestamp_end,
           estimated_minutes: s.estimated_minutes,
+          proof_type: s.proof_type,
+          proof_instructions: s.proof_instructions,
         }));
 
         const { error: stepsErr } = await supabase.from("plan_steps").insert(stepRows);

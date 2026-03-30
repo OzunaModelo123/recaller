@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ContentAnalysis } from "@/lib/ai/contentAnalyzer";
 import { parseOrgContext } from "@/lib/ai/orgContext";
 import type { ValidationResult } from "@/lib/ai/planValidator";
+import { defaultProofForStep } from "@/lib/proof";
 import { createClient } from "@/lib/supabase/server";
 
 import { PlanEditor } from "./plan-editor";
@@ -86,7 +87,7 @@ export default async function PlanDetailPage({ params }: Props) {
   const { data: steps } = await supabase
     .from("plan_steps")
     .select(
-      "step_number, title, instructions, success_criteria, video_timestamp_start, video_timestamp_end, estimated_minutes",
+      "step_number, title, instructions, success_criteria, video_timestamp_start, video_timestamp_end, estimated_minutes, proof_type, proof_instructions",
     )
     .eq("plan_id", id)
     .order("step_number", { ascending: true });
@@ -118,15 +119,24 @@ export default async function PlanDetailPage({ params }: Props) {
       : ["All roles"];
 
   const stepRows =
-    steps?.map((s) => ({
-      step_number: s.step_number,
-      title: s.title,
-      instructions: s.instructions,
-      success_criteria: s.success_criteria,
-      video_timestamp_start: s.video_timestamp_start,
-      video_timestamp_end: s.video_timestamp_end,
-      estimated_minutes: s.estimated_minutes,
-    })) ?? [];
+    steps?.map((s) => {
+      const proof = defaultProofForStep({
+        proof_type: s.proof_type,
+        proof_instructions: s.proof_instructions,
+        success_criteria: s.success_criteria,
+      });
+      return {
+        step_number: s.step_number,
+        title: s.title,
+        instructions: s.instructions,
+        success_criteria: s.success_criteria,
+        video_timestamp_start: s.video_timestamp_start,
+        video_timestamp_end: s.video_timestamp_end,
+        estimated_minutes: s.estimated_minutes,
+        proof_type: proof.proof_type,
+        proof_instructions: proof.proof_instructions,
+      };
+    }) ?? [];
 
   return (
     <div className="space-y-8">

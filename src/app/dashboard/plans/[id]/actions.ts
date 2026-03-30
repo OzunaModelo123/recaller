@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { embedApprovedPlan } from "@/lib/ai/embeddingService";
+import { defaultProofForStep } from "@/lib/proof";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
@@ -14,6 +15,8 @@ type StepRow = {
   video_timestamp_start: number | null;
   video_timestamp_end: number | null;
   estimated_minutes: number | null;
+  proof_type: string;
+  proof_instructions: string;
 };
 
 export type SavePlanState = {
@@ -82,6 +85,8 @@ export async function savePlan(planId: string, state: SavePlanState): Promise<Ac
       video_timestamp_start: s.video_timestamp_start,
       video_timestamp_end: s.video_timestamp_end,
       estimated_minutes: s.estimated_minutes ?? 15,
+      proof_type: s.proof_type,
+      proof_instructions: s.proof_instructions,
     })),
   } satisfies Record<string, unknown>;
 
@@ -108,6 +113,8 @@ export async function savePlan(planId: string, state: SavePlanState): Promise<Ac
     video_timestamp_start: s.video_timestamp_start,
     video_timestamp_end: s.video_timestamp_end,
     estimated_minutes: s.estimated_minutes,
+    proof_type: s.proof_type,
+    proof_instructions: s.proof_instructions,
   }));
 
   const { error: insErr } = await supabase.from("plan_steps").insert(inserts);
@@ -160,13 +167,19 @@ export async function resetPlanToDraft(planId: string): Promise<ActionResult> {
     .map((s, idx) => {
       if (!s || typeof s !== "object") return null;
       const o = s as Record<string, unknown>;
+      const success_criteria =
+        typeof o.success_criteria === "string" ? o.success_criteria : "";
+      const proof = defaultProofForStep({
+        proof_type: o.proof_type,
+        proof_instructions: o.proof_instructions,
+        success_criteria,
+      });
       return {
         plan_id: planId,
         step_number: typeof o.step_number === "number" ? o.step_number : idx + 1,
         title: typeof o.title === "string" ? o.title : "",
         instructions: typeof o.instructions === "string" ? o.instructions : "",
-        success_criteria:
-          typeof o.success_criteria === "string" ? o.success_criteria : "",
+        success_criteria,
         video_timestamp_start:
           typeof o.video_timestamp_start === "number"
             ? o.video_timestamp_start
@@ -175,6 +188,8 @@ export async function resetPlanToDraft(planId: string): Promise<ActionResult> {
           typeof o.video_timestamp_end === "number" ? o.video_timestamp_end : null,
         estimated_minutes:
           typeof o.estimated_minutes === "number" ? o.estimated_minutes : 15,
+        proof_type: proof.proof_type,
+        proof_instructions: proof.proof_instructions,
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);

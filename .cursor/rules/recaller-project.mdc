@@ -9,7 +9,7 @@ B2B SaaS training execution: ingest content → AI plans (2–10 steps, complexi
 
 ## Tech stack
 
-Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Postgres, RLS, pgvector) · Plan AI: `AI_PROVIDER=grok` (xAI Grok via OpenAI-compatible SDK) or `openai` (GPT-4.1 / GPT-4.1 Mini); embeddings `text-embedding-3-small` (OpenAI only, optional when using Grok) · Inngest · Stripe · Resend · Sentry · Slack (@vercel/slack-bolt) · Teams (REST, no BotBuilder) · youtube-transcript, pdf-parse, mammoth; Whisper only when no transcript.
+Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Postgres, RLS, pgvector) · Plan AI: **Anthropic** (Claude — analysis) + **OpenAI** (GPT-4.1 generation, GPT-4.1 Mini validation, `text-embedding-3-small` embeddings) · Inngest · Stripe · Resend · Sentry · Slack (@vercel/slack-bolt) · Teams (REST, no BotBuilder) · youtube-transcript, pdf-parse, mammoth; Whisper only when no transcript.
 
 ## Build order
 
@@ -23,6 +23,10 @@ Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Po
 - Routes: `src/app/dashboard/*` (admin), `src/app/employee/*` (employees).
 - Supabase SSR: browser client, server client + cookies, middleware for session + route protection.
 
+## Trackable steps & proof (aligned with local build guide)
+
+Plans have **2–10** steps (**N** is dynamic — never hardcode 4). **Migration 013+** (see `database-schema.mdc` when added): `plan_steps.proof_type` + `plan_steps.proof_instructions`; `step_completions.evidence` (JSONB); `UNIQUE(assignment_id, step_number)`. **Phase 3:** AI + plan editor produce proof fields; validator treats measurability as including in-app trackability. **Phase 4:** employee submits evidence + `POST /api/completions` (`platform: web`). **Phase 5:** managers see evidence in feeds/history. **Phases 6–7:** Slack/Teams use the **same** completions contract with `platform: slack | teams`. Details: `### Phase 3–8` in **`.cursor/plans/recaller_build_guide_aba69b5a.plan.md`**.
+
 ## Single source of truth (phases)
 
 - **Phase status and “what’s next”** live in this file (`## Phase status`, `## Active implementation focus`).
@@ -33,15 +37,15 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Active implementation focus
 
-**Phase 4 — Employee Web Interface** (next in sequence). Implement only what that plan section specifies; do not build later-phase features early.
+**Phase 5 — Manager Dashboard + Distribution** (next in sequence): manager evidence/history feeds and dynamic completion funnels based on per-plan step count N. Do not build Phase 6–7 features early.
 
 ## Phase status
 
-**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + middleware gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save).
+**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + middleware gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save). Phase 4 (Employee Web Interface — assignments list + N-step progress + per-step proof/evidence UI, `plan_steps.proof_type/proof_instructions`, `step_completions.evidence`, and `POST /api/completions` with `platform: web`).
 
 **Deferred env:** `STRIPE_WEBHOOK_SECRET` (9), `SLACK_BOT_TOKEN` / `SLACK_STATE_SECRET` (6), `TEAMS_*` (7), `SENTRY_AUTH_TOKEN` (12).
 
-**Next:** Phase 4 — Employee Web Interface → plan section `### Phase 4: Employee Web Interface`.
+**Next:** Phase 5 — Manager Dashboard + Distribution → plan section `### Phase 5: Manager Dashboard + Distribution`.
 
 ## When you finish or start a phase
 

@@ -138,7 +138,7 @@ export async function embedContentItem(
   if (!embeddingClient) {
     if (process.env.NODE_ENV === "development") {
       console.warn(
-        "[recaller] Skipping content embeddings: OPENAI_API_KEY not set (Grok has no embedding API)",
+        "[recaller] Skipping content embeddings: OPENAI_API_KEY not set",
       );
     }
     return;
@@ -168,15 +168,24 @@ export async function embedContentItem(
 
 export function serializePlanForEmbedding(planBody: {
   title: string;
-  steps: { step_number: number; title: string; instructions: string }[];
+  steps: {
+    step_number: number;
+    title: string;
+    instructions: string;
+    proof_type?: string;
+    proof_instructions?: string;
+  }[];
 }): string {
   const parts = planBody.steps
     .slice()
     .sort((a, b) => a.step_number - b.step_number)
-    .map(
-      (s) =>
-        `Step ${s.step_number}: ${s.title} — ${s.instructions}`,
-    );
+    .map((s) => {
+      const proof =
+        s.proof_instructions?.trim() || s.proof_type
+          ? ` [Proof: ${s.proof_type ?? "text"} — ${s.proof_instructions ?? ""}]`
+          : "";
+      return `Step ${s.step_number}: ${s.title} — ${s.instructions}${proof}`;
+    });
   return `Plan: ${planBody.title}. ${parts.join(" ")}`;
 }
 
@@ -201,20 +210,35 @@ export async function embedApprovedPlan(
   const o = cv as Record<string, unknown>;
   const title = typeof o.title === "string" ? o.title : "";
   const steps = Array.isArray(o.steps) ? o.steps : [];
-  const normalized = steps
-    .map((s) => {
-      if (!s || typeof s !== "object") return null;
-      const st = s as Record<string, unknown>;
-      const stepNumber = typeof st.step_number === "number" ? st.step_number : 0;
-      const stTitle = typeof st.title === "string" ? st.title : "";
-      const instructions =
-        typeof st.instructions === "string" ? st.instructions : "";
-      return { step_number: stepNumber, title: stTitle, instructions };
-    })
-    .filter(
-      (x): x is { step_number: number; title: string; instructions: string } =>
-        x !== null && x.step_number >= 1,
-    );
+  const normalized: {
+    step_number: number;
+    title: string;
+    instructions: string;
+    proof_type?: string;
+    proof_instructions?: string;
+  }[] = [];
+  for (const s of steps) {
+    if (!s || typeof s !== "object") continue;
+    const st = s as Record<string, unknown>;
+    const stepNumber = typeof st.step_number === "number" ? st.step_number : 0;
+    if (stepNumber < 1) continue;
+    const stTitle = typeof st.title === "string" ? st.title : "";
+    const instructions =
+      typeof st.instructions === "string" ? st.instructions : "";
+    const proof_type =
+      typeof st.proof_type === "string" ? st.proof_type : undefined;
+    const proof_instructions =
+      typeof st.proof_instructions === "string"
+        ? st.proof_instructions
+        : undefined;
+    normalized.push({
+      step_number: stepNumber,
+      title: stTitle,
+      instructions,
+      proof_type,
+      proof_instructions,
+    });
+  }
 
   const planText = serializePlanForEmbedding({ title, steps: normalized });
   if (!planText.trim()) throw new Error("Empty plan text");
@@ -222,7 +246,7 @@ export async function embedApprovedPlan(
   if (!embeddingClient) {
     if (process.env.NODE_ENV === "development") {
       console.warn(
-        "[recaller] Skipping plan embedding: OPENAI_API_KEY not set (Grok has no embedding API)",
+        "[recaller] Skipping plan embedding: OPENAI_API_KEY not set",
       );
     }
     return;

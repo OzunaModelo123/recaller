@@ -33,6 +33,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown } from "lucide-react";
 
+import { PROOF_TYPES } from "@/lib/proof";
+
 import { resetPlanToDraft, savePlan, type SavePlanState } from "./actions";
 
 type Step = SavePlanState["steps"][number];
@@ -335,6 +337,36 @@ export function PlanEditor(props: {
                   className="min-h-[80px]"
                   value={s.success_criteria}
                   onChange={(e) => updateStep(i, { success_criteria: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-xs">Proof type (Recaller tracking)</Label>
+                  <Select
+                    value={s.proof_type}
+                    onValueChange={(v) => updateStep(i, { proof_type: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROOF_TYPES.map((pt) => (
+                        <SelectItem key={pt} value={pt}>
+                          {pt.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Proof instructions (shown to employee)</Label>
+                <Textarea
+                  className="min-h-[72px]"
+                  value={s.proof_instructions}
+                  onChange={(e) =>
+                    updateStep(i, { proof_instructions: e.target.value })
+                  }
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-3">

@@ -38,6 +38,19 @@ If uploads to Storage fail or the bucket is missing:
 
 1. Same steps as above, but paste **`supabase/migrations/008_content_storage.sql`** and **Run**.
 
+## Trackable steps (migration `013`) + TypeScript types
+
+After **`013_trackable_step_proof.sql`** runs on the hosted project (SQL Editor, MCP `apply_migration`, or `supabase db push`):
+
+1. Regenerate **`src/types/database.ts`** so the app matches the live schema:
+   - **CLI** (needs `npx supabase login` or `SUPABASE_ACCESS_TOKEN`):
+     ```bash
+     npx supabase gen types typescript --project-id YOUR_PROJECT_REF > src/types/database.ts
+     ```
+   - **Dashboard:** Settings → API → **Generate TypeScript types** (paste into `src/types/database.ts` if you prefer).
+
+`YOUR_PROJECT_REF` is the segment in `https://supabase.com/dashboard/project/<THIS_PART>/...` (same as in `NEXT_PUBLIC_SUPABASE_URL` before `.supabase.co`).
+
 ## Optional: CLI later
 
 To push all migrations from the terminal in the future:

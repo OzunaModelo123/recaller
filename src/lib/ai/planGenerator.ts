@@ -1,8 +1,11 @@
+import type { ProofType } from "@/lib/proof";
+import { defaultProofForStep } from "@/lib/proof";
+
 import type { ContentAnalysis } from "./contentAnalyzer";
 import type { SimilarPlan } from "./embeddingService";
 import type { OrgContext } from "./orgContext";
 import { getRoleDetails } from "./orgContext";
-import { GENERATION_MODEL, aiClient } from "./modelRouter";
+import { GENERATION_MODEL, openaiClient } from "./modelRouter";
 
 export type GeneratedPlanStep = {
   step_number: number;
@@ -12,6 +15,8 @@ export type GeneratedPlanStep = {
   video_timestamp_start: number | null;
   video_timestamp_end: number | null;
   estimated_minutes: number;
+  proof_type: ProofType;
+  proof_instructions: string;
 };
 
 export type GeneratedPlan = {
@@ -56,6 +61,8 @@ const generatedPlanJsonSchema = {
             "video_timestamp_start",
             "video_timestamp_end",
             "estimated_minutes",
+            "proof_type",
+            "proof_instructions",
           ],
           properties: {
             step_number: { type: "integer" },
@@ -65,6 +72,18 @@ const generatedPlanJsonSchema = {
             video_timestamp_start: { type: "integer" },
             video_timestamp_end: { type: "integer" },
             estimated_minutes: { type: "integer" },
+            proof_type: {
+              type: "string",
+              enum: [
+                "none",
+                "text",
+                "link",
+                "text_and_link",
+                "file",
+                "screenshot",
+              ],
+            },
+            proof_instructions: { type: "string" },
           },
         },
       },
@@ -77,19 +96,31 @@ function normalizePlan(raw: GeneratedPlan): GeneratedPlan {
     .filter((s) => s.step_number >= 1 && s.step_number <= 20)
     .sort((a, b) => a.step_number - b.step_number);
 
-  const steps = sorted.map((s, idx) => ({
-    ...s,
-    step_number: idx + 1,
-    video_timestamp_start:
-      s.video_timestamp_start && s.video_timestamp_start > 0
-        ? s.video_timestamp_start
-        : null,
-    video_timestamp_end:
-      s.video_timestamp_end && s.video_timestamp_end > 0
-        ? s.video_timestamp_end
-        : null,
-    estimated_minutes: Math.max(5, s.estimated_minutes || 15),
-  }));
+  const steps = sorted.map((s, idx) => {
+    const merged = {
+      ...s,
+      step_number: idx + 1,
+      video_timestamp_start:
+        s.video_timestamp_start && s.video_timestamp_start > 0
+          ? s.video_timestamp_start
+          : null,
+      video_timestamp_end:
+        s.video_timestamp_end && s.video_timestamp_end > 0
+          ? s.video_timestamp_end
+          : null,
+      estimated_minutes: Math.max(5, s.estimated_minutes || 15),
+    };
+    const proof = defaultProofForStep({
+      proof_type: merged.proof_type ?? s.proof_type,
+      proof_instructions: merged.proof_instructions ?? s.proof_instructions,
+      success_criteria: merged.success_criteria,
+    });
+    return {
+      ...merged,
+      proof_type: proof.proof_type,
+      proof_instructions: proof.proof_instructions,
+    } satisfies GeneratedPlanStep;
+  });
 
   const clamped = steps.slice(0, 10);
   if (clamped.length < 2) {
@@ -163,6 +194,7 @@ RULES:
 6. If the content is video, include timestamp ranges for relevant sections (seconds as integers; use 0 if not applicable)
 7. Instructions must be specific enough that the employee knows EXACTLY what to do without interpretation
 8. If similar approved plans exist, match their tone and specificity level
+9. RECALLER EXECUTION: Each step must be completable in Recaller (web now; Slack/Teams later). For every step set proof_type and proof_instructions: choose proof_type from none | text | link | text_and_link | file | screenshot. The employee will submit evidence in-app matching that type. proof_instructions must say exactly what to paste, link, or attach. Avoid steps that cannot be evidenced with those types. Align success_criteria with what a manager can verify from that evidence.
 
 Choose an appropriate number of steps between 2 and 10 based on content depth. Generate the execution plan.`;
 
@@ -171,7 +203,7 @@ Choose an appropriate number of steps between 2 and 10 based on content depth. G
     userMsg += `\n\n---\nPrior validation feedback — address these issues in the revised plan:\n${options.priorValidationFeedback.trim()}`;
   }
 
-  const completion = await aiClient.chat.completions.create({
+  const completion = await openaiClient.chat.completions.create({
     model: GENERATION_MODEL,
     messages: [
       { role: "system", content: system },

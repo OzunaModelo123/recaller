@@ -266,7 +266,7 @@ src/
 <tr><td align="center"><code>01</code></td><td>Database schema, auth, dashboard shell</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>02</code></td><td>Content ingestion — YouTube, PDF, DOCX, Whisper</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>03</code></td><td>AI plan generation — analyze, generate, validate</td><td align="center">&#9745;</td></tr>
-<tr><td align="center"><code>04</code></td><td>Employee web interface & step completion</td><td align="center">&#9744;</td></tr>
+<tr><td align="center"><code>04</code></td><td>Employee web interface & step completion</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>05</code></td><td>Manager dashboard & distribution</td><td align="center">&#9744;</td></tr>
 <tr><td align="center"><code>06</code></td><td>Slack bot integration</td><td align="center">&#9744;</td></tr>
 <tr><td align="center"><code>07</code></td><td>Microsoft Teams bot</td><td align="center">&#9744;</td></tr>
