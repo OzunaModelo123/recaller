@@ -21,9 +21,22 @@ alwaysApply: true
 
 Phase 2: Content Ingestion — see `.cursor/plans/recaller_build_guide_aba69b5a.plan.md` under "### Phase 2"
 
+## GitHub Repository
+
+- Repo: https://github.com/OzunaModelo123/recaller (private)
+- GitHub CLI: `/tmp/gh_2.89.0_macOS_arm64/bin/gh` (already authenticated as OzunaModelo123)
+
 ## When Starting a New Phase
 
 1. Read the phase section in the build guide
 2. Read `.cursor/rules/recaller-project.mdc` for architecture context
 3. Check this file for what's already complete
 4. Update this file when the phase is done
+
+## When Completing a Phase (MANDATORY)
+
+1. Run a security audit — scan all staged files for API keys, secrets, tokens. Never commit `.env.local`.
+2. Create a detailed conventional commit (`feat:`, `fix:`, `chore:`) with body listing what was built.
+3. Push to GitHub: `git push origin main`
+4. Verify push succeeded and no secrets leaked.
+5. Update this file to mark the phase as completed.
