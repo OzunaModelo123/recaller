@@ -1,5 +1,5 @@
 import type { OrgContext } from "./orgContext";
-import { ANALYSIS_MODEL, openaiClient } from "./modelRouter";
+import { ANALYSIS_MODEL, aiClient } from "./modelRouter";
 
 export type ContentAnalysis = {
   key_concepts: string[];
@@ -79,7 +79,7 @@ Fill every field in the schema:
 
   const userContent = `Transcript:\n\n${transcript.slice(0, 200_000)}`;
 
-  const completion = await openaiClient.chat.completions.create({
+  const completion = await aiClient.chat.completions.create({
     model: ANALYSIS_MODEL,
     messages: [
       { role: "system", content: system },

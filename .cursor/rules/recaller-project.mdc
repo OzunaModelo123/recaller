@@ -9,7 +9,7 @@ B2B SaaS training execution: ingest content → AI plans (2–10 steps, complexi
 
 ## Tech stack
 
-Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Postgres, RLS, pgvector) · GPT-4.1 / GPT-4.1 Mini / text-embedding-3-small (OpenAI) · Inngest · Stripe · Resend · Sentry · Slack (@vercel/slack-bolt) · Teams (REST, no BotBuilder) · youtube-transcript, pdf-parse, mammoth; Whisper only when no transcript.
+Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Postgres, RLS, pgvector) · Plan AI: `AI_PROVIDER=grok` (xAI Grok via OpenAI-compatible SDK) or `openai` (GPT-4.1 / GPT-4.1 Mini); embeddings `text-embedding-3-small` (OpenAI only, optional when using Grok) · Inngest · Stripe · Resend · Sentry · Slack (@vercel/slack-bolt) · Teams (REST, no BotBuilder) · youtube-transcript, pdf-parse, mammoth; Whisper only when no transcript.
 
 ## Build order
 

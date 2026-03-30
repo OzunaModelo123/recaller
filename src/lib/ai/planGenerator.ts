@@ -2,7 +2,7 @@ import type { ContentAnalysis } from "./contentAnalyzer";
 import type { SimilarPlan } from "./embeddingService";
 import type { OrgContext } from "./orgContext";
 import { getRoleDetails } from "./orgContext";
-import { GENERATION_MODEL, openaiClient } from "./modelRouter";
+import { GENERATION_MODEL, aiClient } from "./modelRouter";
 
 export type GeneratedPlanStep = {
   step_number: number;
@@ -171,7 +171,7 @@ Choose an appropriate number of steps between 2 and 10 based on content depth. G
     userMsg += `\n\n---\nPrior validation feedback — address these issues in the revised plan:\n${options.priorValidationFeedback.trim()}`;
   }
 
-  const completion = await openaiClient.chat.completions.create({
+  const completion = await aiClient.chat.completions.create({
     model: GENERATION_MODEL,
     messages: [
       { role: "system", content: system },

@@ -3,7 +3,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/types/database";
 
-import { EMBEDDING_MODEL, openaiClient } from "./modelRouter";
+import { EMBEDDING_MODEL, embeddingClient } from "./modelRouter";
+
+/** Thrown when OPENAI_API_KEY is missing; callers may skip embedding features. */
+export class EmbeddingsDisabledError extends Error {
+  constructor() {
+    super(
+      "Embeddings disabled: set OPENAI_API_KEY to enable OpenAI text-embedding-3-small",
+    );
+    this.name = "EmbeddingsDisabledError";
+  }
+}
 
 const CHUNK_CHAR_TARGET = 1600;
 const MAX_BACKOFF_MS = 16_000;
@@ -30,11 +40,14 @@ function vectorParamEmbedding(embedding: number[]): string {
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
+  if (!embeddingClient) {
+    throw new EmbeddingsDisabledError();
+  }
   const input = text.slice(0, 300_000);
   let attempt = 0;
   for (;;) {
     try {
-      const res = await openaiClient.embeddings.create({
+      const res = await embeddingClient.embeddings.create({
         model: EMBEDDING_MODEL,
         input,
       });
@@ -122,6 +135,15 @@ export async function embedContentItem(
   const chunks = chunkTranscript(transcript);
   if (chunks.length === 0) return;
 
+  if (!embeddingClient) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[recaller] Skipping content embeddings: OPENAI_API_KEY not set (Grok has no embedding API)",
+      );
+    }
+    return;
+  }
+
   await admin.from("content_embeddings").delete().eq("content_item_id", contentItemId);
 
   for (let i = 0; i < chunks.length; i++) {
@@ -197,6 +219,15 @@ export async function embedApprovedPlan(
   const planText = serializePlanForEmbedding({ title, steps: normalized });
   if (!planText.trim()) throw new Error("Empty plan text");
 
+  if (!embeddingClient) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[recaller] Skipping plan embedding: OPENAI_API_KEY not set (Grok has no embedding API)",
+      );
+    }
+    return;
+  }
+
   await admin
     .from("plan_embeddings")
     .delete()
@@ -223,6 +254,10 @@ export async function findSimilarApprovedPlans(
   const q = queryText.trim();
   if (!q) return [];
 
+  if (!embeddingClient) {
+    return [];
+  }
+
   const embedding = await generateEmbedding(q.slice(0, 8000));
   const { data, error } = await supabase.rpc("match_plan_embeddings", {
     p_org_id: orgId,
@@ -246,6 +281,10 @@ export async function findRelevantContentChunks(
 ): Promise<ContentChunk[]> {
   const q = queryText.trim();
   if (!q) return [];
+
+  if (!embeddingClient) {
+    return [];
+  }
 
   const embedding = await generateEmbedding(q.slice(0, 8000));
   const { data, error } = await supabase.rpc("match_content_chunks", {

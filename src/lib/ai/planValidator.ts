@@ -1,7 +1,7 @@
 import type { ContentAnalysis } from "./contentAnalyzer";
 import type { GeneratedPlan } from "./planGenerator";
 import type { OrgContext } from "./orgContext";
-import { VALIDATION_MODEL, openaiClient } from "./modelRouter";
+import { VALIDATION_MODEL, aiClient } from "./modelRouter";
 
 export type ValidationResult = {
   scores: {
@@ -91,7 +91,7 @@ Return JSON matching the schema: scores (integers 1-5), overall_score (average o
 
   const user = `THE PLAN TO EVALUATE:\n${JSON.stringify(plan)}`;
 
-  const completion = await openaiClient.chat.completions.create({
+  const completion = await aiClient.chat.completions.create({
     model: VALIDATION_MODEL,
     messages: [
       { role: "system", content: system },
