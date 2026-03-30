@@ -215,7 +215,7 @@ organisations ─┬── users
 
 Admins invite people from **`/dashboard/team`**. Recaller stores a row in **`public.invitations`** and sends a Supabase Auth invite email. The recipient follows the link; invite acceptance may return session tokens in the **URL hash** on `/login`, which the app completes and then routes through **`/post-login`** (which provisions **`public.users`** with the correct `org_id` and `role`).
 
-**Invited employees** carry `invited_org_id` in Supabase **`user_metadata`**. Until they set a password and the app writes **`password_set_at`** in that metadata, **middleware** keeps them on **`/employee/setup-password`** — they cannot open My Plans or other employee routes first. After that, they sign in with email and password like anyone else.
+**Invited employees** carry `invited_org_id` in Supabase **`user_metadata`**. Until they set a password and the app writes **`password_set_at`** in that metadata, the **request proxy** (`src/proxy.ts`) keeps them on **`/employee/setup-password`** — they cannot open My Plans or other employee routes first. After that, they sign in with email and password like anyone else.
 
 The Team page lists **active org members** (`users` for your `org_id`) and **pending invites** (`invitations` with `status = 'pending'`). Resending an invite expires the previous pending row so a fresh email can be sent.
 

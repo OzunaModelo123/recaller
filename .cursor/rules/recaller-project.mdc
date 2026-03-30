@@ -21,7 +21,7 @@ Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Po
 - NotificationService routes Slack / Teams / email from org + user identity.
 - Analytics: pre-written SQL only; AI writes narrative, never ad-hoc production SQL.
 - Routes: `src/app/dashboard/*` (admin), `src/app/employee/*` (employees).
-- Supabase SSR: browser client, server client + cookies, middleware for session + route protection.
+- Supabase SSR: browser client, server client + cookies, `src/proxy.ts` for session + route protection (Next.js request proxy).
 - **Team & invites:** Admins invite from `/dashboard/team` (Supabase `inviteUserByEmail`, `public.invitations`). Invited users get `user_metadata.invited_org_id`; they complete onboarding at `/employee/setup-password` (sets `password_set_at`) before other employee routes. `/login` handles invite tokens in the URL hash; `/post-login` provisions `public.users`. Team UI lists org members and pending invites; resending marks the previous `pending` invitation `expired`.
 - **Plan AI path:** `POST /api/plans/generate` — Claude (Anthropic) analyzes content → OpenAI GPT-4.1 generates the plan → GPT-4.1 Mini validates (with optional regen) → OpenAI embeddings for similarity; see `src/lib/ai/*` and README.
 
@@ -43,7 +43,7 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Phase status
 
-**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + middleware gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save). Phase 4 (Employee Web Interface — assignments list + N-step progress + per-step proof/evidence UI, `plan_steps.proof_type/proof_instructions`, `step_completions.evidence`, and `POST /api/completions` with `platform: web`).
+**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + proxy gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save). Phase 4 (Employee Web Interface — assignments list + N-step progress + per-step proof/evidence UI, `plan_steps.proof_type/proof_instructions`, `step_completions.evidence`, and `POST /api/completions` with `platform: web`).
 
 **Deferred env:** `STRIPE_WEBHOOK_SECRET` (9), `SLACK_BOT_TOKEN` / `SLACK_STATE_SECRET` (6), `TEAMS_*` (7), `SENTRY_AUTH_TOKEN` (12).
 
