@@ -27,8 +27,7 @@ Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Po
 
 - **Phase status and “what’s next”** live in this file (`## Phase status`, `## Active implementation focus`).
 - **`CLAUDE.md`** (repo root) carries a one-line mirror for tools that read it; **update both** when you advance a phase so nothing drifts.
-- **Handoffs:** `.cursor/handoff_phaseN.md` — short paste prompt + pointers; do **not** repeat the full stack here if this rule is already in context (saves tokens).
-- **Build guide:** `.cursor/plans/recaller_build_guide_aba69b5a.plan.md` — local only (not in git). **Do not load the whole file into chat.** Read only `### Phase N` for the phase you are implementing.
+- **New chat / new phase:** Rely on this rule (always-on; or `@.cursor/rules/recaller-project.mdc`) and open only **`### Phase N`** in **`.cursor/plans/recaller_build_guide_aba69b5a.plan.md`** (local, not in git). **Do not** load or paste the full build guide.
 
 Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standards.mdc` (TS/TSX) — glob-scoped, not always-on.
 
@@ -49,8 +48,7 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 1. Edit **Phase status** and **Active implementation focus** above.
 2. Sync the **Status** line in **`CLAUDE.md`**.
 3. Update **`README.md`** Build Roadmap checkmarks if the phase completes.
-4. For a **new** phase: copy `.cursor/handoff_phase2.md` → `handoff_phaseN.md`, point at `### Phase N`, shorten the paste block to the template there.
-5. Run the **GitHub** checklist below, then push (only after the phase is marked done — no mid-phase pushes unless the user explicitly requests).
+4. Run the **GitHub** checklist below, then push (only after the phase is marked done — no mid-phase pushes unless the user explicitly requests).
 
 ## GitHub (each phase end)
 

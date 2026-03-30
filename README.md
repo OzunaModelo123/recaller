@@ -282,7 +282,7 @@ src/
 
 ## AI assistants & phased development
 
-Authoritative **phase status** and architecture live in **`.cursor/rules/recaller-project.mdc`** (Cursor always-on rule). **`CLAUDE.md`** mirrors the current phase in one line — update both when you advance a phase. Short **handoff prompts** live in **`.cursor/handoff_phaseN.md`**. The full build guide stays **local** under `.cursor/plans/` (not committed); in chats, open only the `### Phase N` section you are implementing.
+Authoritative **phase status** and architecture live in **`.cursor/rules/recaller-project.mdc`** (Cursor always-on rule). **`CLAUDE.md`** mirrors the current phase in one line — update both when you advance a phase. For a new phase or new chat, reference that rule and open only **`### Phase N`** in the build guide (`.cursor/plans/`, local — not committed); do not paste the full plan.
 
 <br />
 

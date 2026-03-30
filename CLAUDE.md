@@ -6,7 +6,7 @@
 
 **Build spec:** `.cursor/plans/recaller_build_guide_aba69b5a.plan.md` — **local copy** (not in git). Open only the `### Phase N` section you need; never paste or attach the full plan.
 
-**New chat / handoff:** Optional `@.cursor/handoff_phaseN.md` for a minimal task prompt; rely on `recaller-project.mdc` for stack and status — avoid duplicating them in the paste.
+**New chat / new phase:** Use **`@.cursor/rules/recaller-project.mdc`** (or rely on always-on rules) plus the build guide section **`### Phase N`** only — no separate handoff files.
 
 **Conventions:** `org_id` + RLS · Server Components by default · no `service_role` in browser · Inngest for jobs.
 
