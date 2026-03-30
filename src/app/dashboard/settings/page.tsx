@@ -1,6 +1,36 @@
-import { Settings, Blocks, CreditCard, Building2 } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Blocks, CreditCard, Building2 } from "lucide-react";
 
-export default function SettingsPage() {
+import { parseOrgContext } from "@/lib/ai/orgContext";
+import { CompanyContextSettingsPanel } from "@/components/dashboard/company-context-forms";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("org_id, role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
+
+  const { data: org } =
+    profile?.org_id && isAdmin
+      ? await supabase
+          .from("organisations")
+          .select("org_context")
+          .eq("id", profile.org_id)
+          .maybeSingle()
+      : { data: null };
+
+  const initial = parseOrgContext(org?.org_context);
+
   return (
     <div className="space-y-8">
       <div>
@@ -9,6 +39,8 @@ export default function SettingsPage() {
           Organization settings, integrations, and billing.
         </p>
       </div>
+
+      {isAdmin && <CompanyContextSettingsPanel initial={initial} />}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
@@ -48,15 +80,6 @@ export default function SettingsPage() {
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/50 py-14 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-          <Settings className="h-5 w-5 text-stone-300" />
-        </div>
-        <p className="mx-auto mt-4 max-w-sm text-sm text-stone-400">
-          Full settings management will be available in a future update. Stay tuned.
-        </p>
       </div>
     </div>
   );

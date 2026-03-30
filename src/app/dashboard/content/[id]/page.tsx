@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Clock, ExternalLink, FileText } from "lucide-react";
+import { GeneratePlanButton } from "@/components/dashboard/generate-plan-button";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ id: string }> };
@@ -84,9 +85,15 @@ export default async function ContentDetailPage({ params }: Props) {
 
       {/* Transcript */}
       <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2.5 border-b border-stone-100 px-6 py-4">
-          <FileText className="h-4 w-4 text-stone-400" />
-          <h2 className="text-sm font-semibold text-stone-800">Transcript</h2>
+        <div className="flex flex-col gap-4 border-b border-stone-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <FileText className="h-4 w-4 text-stone-400" />
+            <h2 className="text-sm font-semibold text-stone-800">Transcript</h2>
+          </div>
+          <GeneratePlanButton
+            contentItemId={item.id}
+            disabled={item.status !== "ready" || !item.transcript}
+          />
         </div>
         <div className="px-6 py-5">
           {item.transcript ? (

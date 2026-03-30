@@ -18,4 +18,4 @@
 
 **CLI:** GitHub CLI may live at `/tmp/gh_2.89.0_macOS_arm64/bin/gh` on this machine; use `gh` if it is on your `PATH`.
 
-**Status (mirror `recaller-project.mdc`):** Phases 0–2 done; **next Phase 3** (AI Plan Generation). Repo: https://github.com/OzunaModelo123/recaller
+**Status (mirror `recaller-project.mdc`):** Phases 0–3 done; **next Phase 4** (Employee Web Interface). Repo: https://github.com/OzunaModelo123/recaller

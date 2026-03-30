@@ -51,6 +51,36 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (
+    user &&
+    pathname.startsWith("/dashboard") &&
+    !pathname.startsWith("/dashboard/onboarding")
+  ) {
+    const { data: urow } = await supabase
+      .from("users")
+      .select("org_id, role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (
+      urow &&
+      (urow.role === "admin" || urow.role === "super_admin") &&
+      urow.org_id
+    ) {
+      const { data: org } = await supabase
+        .from("organisations")
+        .select("onboarding_completed")
+        .eq("id", urow.org_id)
+        .maybeSingle();
+
+      if (org && !org.onboarding_completed) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard/onboarding/context";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   if (user && isAuthPath(pathname)) {
     // Logged-in users are usually sent to the dashboard, but if signup provisioning
     // failed we redirect to /login?error=... — without this bypass, that becomes an

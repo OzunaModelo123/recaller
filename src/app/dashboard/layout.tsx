@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   FileVideo,
   ClipboardList,
+  ListChecks,
   Users,
   BarChart3,
   Settings,
@@ -41,6 +42,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" /> },
   { href: "/dashboard/content", label: "Content", icon: <FileVideo className="h-[18px] w-[18px]" /> },
+  { href: "/dashboard/plans", label: "Plans", icon: <ListChecks className="h-[18px] w-[18px]" /> },
   { href: "/dashboard/assignments", label: "Assignments", icon: <ClipboardList className="h-[18px] w-[18px]" /> },
   { href: "/dashboard/team", label: "Team", icon: <Users className="h-[18px] w-[18px]" />, adminOnly: true },
   { href: "/dashboard/insights", label: "Insights", icon: <BarChart3 className="h-[18px] w-[18px]" />, adminOnly: true },

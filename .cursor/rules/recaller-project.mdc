@@ -33,15 +33,15 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Active implementation focus
 
-**Phase 3 — AI Plan Generation** (next in sequence). Implement only what that plan section specifies; do not build later-phase features early.
+**Phase 4 — Employee Web Interface** (next in sequence). Implement only what that plan section specifies; do not build later-phase features early.
 
 ## Phase status
 
-**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`).
+**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + middleware gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save).
 
 **Deferred env:** `STRIPE_WEBHOOK_SECRET` (9), `SLACK_BOT_TOKEN` / `SLACK_STATE_SECRET` (6), `TEAMS_*` (7), `SENTRY_AUTH_TOKEN` (12).
 
-**Next:** Phase 3 — AI Plan Generation → plan section `### Phase 3: AI Plan Generation`.
+**Next:** Phase 4 — Employee Web Interface → plan section `### Phase 4: Employee Web Interface`.
 
 ## When you finish or start a phase
 

@@ -922,7 +922,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      match_content_chunks: {
+        Args: {
+          p_match_count?: number
+          p_org_id: string
+          p_query_embedding: string
+        }
+        Returns: {
+          chunk_index: number
+          chunk_text: string
+          content_item_id: string
+          similarity: number
+        }[]
+      }
+      match_plan_embeddings: {
+        Args: {
+          p_match_count?: number
+          p_org_id: string
+          p_query_embedding: string
+        }
+        Returns: {
+          plan_id: string
+          plan_text: string
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
