@@ -10,6 +10,10 @@
 
 **Conventions:** `org_id` + RLS · Server Components by default · no `service_role` in browser · Inngest for jobs.
 
+**Auth & team (invites):** Admins invite from `/dashboard/team` (`inviteUserByEmail` + `public.invitations`). Invite links may return session tokens in the **`/login` URL hash**; the client finishes the session and sends users through **`/post-login`** (provisions `public.users` with `invited_org_id` / org). Invited employees must set a password on **`/employee/setup-password`** (`user_metadata.password_set_at`) before other **`/employee/*`** routes — enforced in **`middleware.ts`** and **`post-login`**. Team page lists org **`users`** plus pending **`invitations`**; resending expires the prior `pending` invite row.
+
+**AI plan pipeline (`POST /api/plans/generate`, NDJSON stream):** **Stage 1** `contentAnalyzer.ts` → **Anthropic Claude** (`ANALYSIS_MODEL`). **Stage 2** `planGenerator.ts` → **OpenAI GPT-4.1** (`GENERATION_MODEL`). **Stage 3** `planValidator.ts` → **OpenAI GPT-4.1 Mini** (`VALIDATION_MODEL`). Embeddings: **OpenAI** `text-embedding-3-small` via `embeddingService.ts`. Requires **`ANTHROPIC_API_KEY`** and **`OPENAI_API_KEY`**.
+
 **Trackable steps & proof (mirror `recaller-project.mdc`):** Plans are **2–10** steps (dynamic **N**). After migration **013+**: proof fields on `plan_steps`, `evidence` JSONB on `step_completions`, shared completions API for web + Slack + Teams. Full detail lives in the local build guide `### Phase 3`–`### Phase 8`, not here.
 
 **Dev server:** After finishing an implementation update, **always restart the dev server** (`npm run dev`) so the user can immediately see changes. Kill any existing dev process first, then start fresh. The user should never have to start the server manually.

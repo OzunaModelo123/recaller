@@ -6,18 +6,26 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next") ?? "/post-login";
-
-  if (!code) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+  const accessToken = requestUrl.searchParams.get("access_token");
+  const refreshToken = requestUrl.searchParams.get("refresh_token");
 
   const successUrl = new URL(next, request.url);
   const response = NextResponse.redirect(successUrl);
   const supabase = createRouteHandlerClient(request, response);
 
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (exchangeError) {
+  // Supabase invite acceptance can redirect with either:
+  // - OAuth-style `code` (handled by exchangeCodeForSession), or
+  // - `access_token` + `refresh_token` (handled by setSession).
+  if (code) {
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchangeError) return NextResponse.redirect(new URL("/login", request.url));
+  } else if (accessToken && refreshToken) {
+    const { error: setErr } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (setErr) return NextResponse.redirect(new URL("/login", request.url));
+  } else {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

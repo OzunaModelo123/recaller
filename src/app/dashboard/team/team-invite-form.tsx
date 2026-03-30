@@ -33,7 +33,8 @@ export function TeamInviteForm() {
           />
         </div>
         <p className="text-[11px] text-stone-400">
-          They&apos;ll receive an email to set a password and join as an employee.
+          They&apos;ll get an email link to accept the invite, then choose a password
+          before accessing training.
         </p>
       </div>
 

@@ -22,6 +22,8 @@ Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui (nova) · Supabase (Po
 - Analytics: pre-written SQL only; AI writes narrative, never ad-hoc production SQL.
 - Routes: `src/app/dashboard/*` (admin), `src/app/employee/*` (employees).
 - Supabase SSR: browser client, server client + cookies, middleware for session + route protection.
+- **Team & invites:** Admins invite from `/dashboard/team` (Supabase `inviteUserByEmail`, `public.invitations`). Invited users get `user_metadata.invited_org_id`; they complete onboarding at `/employee/setup-password` (sets `password_set_at`) before other employee routes. `/login` handles invite tokens in the URL hash; `/post-login` provisions `public.users`. Team UI lists org members and pending invites; resending marks the previous `pending` invitation `expired`.
+- **Plan AI path:** `POST /api/plans/generate` — Claude (Anthropic) analyzes content → OpenAI GPT-4.1 generates the plan → GPT-4.1 Mini validates (with optional regen) → OpenAI embeddings for similarity; see `src/lib/ai/*` and README.
 
 ## Trackable steps & proof (aligned with local build guide)
 

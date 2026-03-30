@@ -62,8 +62,21 @@ export async function inviteTeamMember(
     .eq("status", "pending")
     .maybeSingle();
 
+  // Supabase invite OTPs expire quickly; however, we intentionally only allow one
+  // row to be `pending` at a time. If there's already a pending invite, we mark it
+  // as expired so admins can resend.
   if (pending) {
-    return { ok: false, error: "An invitation is already pending for this email." };
+    const { error: expireErr } = await admin
+      .from("invitations")
+      .update({ status: "expired" })
+      .eq("id", pending.id);
+
+    if (expireErr) {
+      return {
+        ok: false,
+        error: `Could not expire existing invitation: ${expireErr.message}`,
+      };
+    }
   }
 
   const { error: invErr } = await supabase.from("invitations").insert({
@@ -78,11 +91,14 @@ export async function inviteTeamMember(
   }
 
   const { error: invAuthErr } = await admin.auth.admin.inviteUserByEmail(email, {
+    // Supabase's invite redirect option name can differ between helpers/SDK versions.
+    // We include both to ensure the user lands on our app to complete the invite flow.
     redirectTo: `${baseUrl}/callback`,
+    emailRedirectTo: `${baseUrl}/callback`,
     data: {
       invited_org_id: profile.org_id,
     },
-  });
+  } as unknown as Record<string, unknown>);
 
   if (invAuthErr) {
     await admin.from("invitations").delete().eq("org_id", profile.org_id).eq("email", email);

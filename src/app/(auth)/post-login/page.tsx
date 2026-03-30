@@ -39,6 +39,14 @@ export default async function PostLoginPage() {
   }
 
   if (profile.role === "employee") {
+    const meta = user.user_metadata ?? {};
+    const invitedOrg =
+      typeof meta.invited_org_id === "string" && meta.invited_org_id.length > 0;
+    const passwordSet =
+      typeof meta.password_set_at === "string" && meta.password_set_at.length > 0;
+    if (invitedOrg && !passwordSet) {
+      redirect("/employee/setup-password");
+    }
     redirect("/employee/my-plans");
   }
 

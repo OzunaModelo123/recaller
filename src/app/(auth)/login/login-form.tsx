@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -18,6 +18,48 @@ function LoginFormInner() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Supabase invite acceptance may land on `/login` with auth tokens in the URL hash:
+    // `/login#access_token=...&refresh_token=...`
+    // Hash fragments are not sent to the server, so we must finalize the session client-side.
+    const hash = window.location.hash?.startsWith("#")
+      ? window.location.hash.slice(1)
+      : "";
+    if (!hash) return;
+
+    const sp = new URLSearchParams(hash);
+    const accessToken = sp.get("access_token");
+    const refreshToken = sp.get("refresh_token");
+    if (!accessToken || !refreshToken) return;
+
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { error: setErr } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (cancelled) return;
+      if (setErr) {
+        // Keep the existing login UI, but surface the error.
+        setError(setErr.message);
+        return;
+      }
+
+      // Remove tokens from the address bar (they are now in cookies).
+      window.history.replaceState({}, document.title, "/login");
+
+      // Provision + routing (including invite password gate) happen in /post-login.
+      router.replace("/post-login");
+      router.refresh();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

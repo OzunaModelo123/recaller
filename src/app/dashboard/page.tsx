@@ -62,6 +62,9 @@ export default async function DashboardPage() {
   let fullName = "there";
   let orgName = "your organization";
   let role = "employee";
+  let orgId: string | null = null;
+  let contentCountLabel = "0";
+  let teamCountLabel = "0";
 
   if (user) {
     const { data: profile } = await supabase
@@ -72,6 +75,7 @@ export default async function DashboardPage() {
 
     fullName = profile?.full_name || user.email?.split("@")[0] || "there";
     role = profile?.role ?? "employee";
+    orgId = profile?.org_id ?? null;
 
     if (profile?.org_id) {
       const { data: org } = await supabase
@@ -84,6 +88,21 @@ export default async function DashboardPage() {
   }
 
   const isAdmin = role === "admin" || role === "super_admin";
+
+  if (isAdmin && orgId) {
+    const [{ count: contentCount }, { count: teamCount }] = await Promise.all([
+      supabase
+        .from("content_items")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId),
+      supabase
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId),
+    ]);
+    contentCountLabel = String(contentCount ?? 0);
+    teamCountLabel = String(teamCount ?? 0);
+  }
   const greeting = getGreeting();
   const firstName = getFirstName(fullName);
 
@@ -122,9 +141,27 @@ export default async function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: "Content Items", value: "0", icon: BookOpen, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Team Members", value: "1", icon: Users, color: "text-violet-600", bg: "bg-violet-50" },
-          { label: "Completion Rate", value: "0%", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
+          {
+            label: "Content Items",
+            value: contentCountLabel,
+            icon: BookOpen,
+            color: "text-amber-600",
+            bg: "bg-amber-50",
+          },
+          {
+            label: "Team Members",
+            value: teamCountLabel,
+            icon: Users,
+            color: "text-violet-600",
+            bg: "bg-violet-50",
+          },
+          {
+            label: "Completion Rate",
+            value: "0%",
+            icon: TrendingUp,
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+          },
         ].map((stat) => (
           <div
             key={stat.label}
