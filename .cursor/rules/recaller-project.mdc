@@ -34,15 +34,15 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Active implementation focus
 
-**Phase 2 — Content Ingestion** (next in sequence). Implement only what that plan section specifies; do not build later-phase features early.
+**Phase 3 — AI Plan Generation** (next in sequence). Implement only what that plan section specifies; do not build later-phase features early.
 
 ## Phase status
 
-**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (7 migrations, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`).
+**Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`).
 
 **Deferred env:** `STRIPE_WEBHOOK_SECRET` (9), `SLACK_BOT_TOKEN` / `SLACK_STATE_SECRET` (6), `TEAMS_*` (7), `SENTRY_AUTH_TOKEN` (12).
 
-**Next:** Phase 2 — Content Ingestion → plan section `### Phase 2: Content Ingestion`.
+**Next:** Phase 3 — AI Plan Generation → plan section `### Phase 3: AI Plan Generation`.
 
 ## When you finish or start a phase
 
@@ -50,7 +50,7 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 2. Sync the **Status** line in **`CLAUDE.md`**.
 3. Update **`README.md`** Build Roadmap checkmarks if the phase completes.
 4. For a **new** phase: copy `.cursor/handoff_phase2.md` → `handoff_phaseN.md`, point at `### Phase N`, shorten the paste block to the template there.
-5. Run the **GitHub** checklist below, then push.
+5. Run the **GitHub** checklist below, then push (only after the phase is marked done — no mid-phase pushes unless the user explicitly requests).
 
 ## GitHub (each phase end)
 
@@ -58,5 +58,7 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 2. Conventional commit with body.  
 3. `git push origin main`.  
 4. Confirm push; no leaks.
+
+Do **not** push to the remote during active mid-phase work unless the user explicitly asks.
 
 Repo: https://github.com/OzunaModelo123/recaller (public).

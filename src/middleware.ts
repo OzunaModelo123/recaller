@@ -52,8 +52,14 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthPath(pathname)) {
+    // Logged-in users are usually sent to the dashboard, but if signup provisioning
+    // failed we redirect to /login?error=... — without this bypass, that becomes an
+    // infinite redirect loop with the dashboard layout.
+    if (pathname.startsWith("/login") && request.nextUrl.searchParams.has("error")) {
+      return response;
+    }
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/post-login";
     return NextResponse.redirect(url);
   }
 

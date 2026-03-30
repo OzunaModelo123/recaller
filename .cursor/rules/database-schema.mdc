@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Database schema & conventions
 
-## 7 migrations (apply in order)
+## 11 migrations (apply in order)
 
 1. `001_core_identity` — organisations, users, invitations + pgvector extension
 2. `002_content_plans` — content_items, content_embeddings (VECTOR 1536), plans, plan_steps, plan_embeddings (VECTOR 1536) + HNSW indexes  
@@ -16,6 +16,10 @@ alwaysApply: false
 5. `005_billing` — subscriptions
 6. `006_insights` — insight_reports, analytics_snapshots
 7. `007_flexible_step_count` — `step_number` CHECK relaxed to **1–10** on `plan_steps` and `step_completions` (was 1–4 in 002).
+8. `008_content_storage` — private Storage bucket `content-files` (500MB limit) + org-scoped RLS on `storage.objects`.
+9. `009_fix_users_rls_recursion` — `auth_user_org_id()` (SECURITY DEFINER) + fix `users_select_same_org` to stop infinite RLS recursion.
+10. `010_org_insert_signup_rls` — fix `org_insert_authenticated` so signup can insert organisations (`auth.uid() is not null`, `to authenticated`).
+11. `011_create_organisation_for_signup` — optional `create_organisation_for_signup(text)` SECURITY DEFINER RPC; the app provisions with **service role** instead so this is not required for signup.
 
 **Design:** Plans have **2–10** behavioral steps. AI suggests count from content complexity; admins can edit before publish.
 

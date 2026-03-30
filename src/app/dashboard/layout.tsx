@@ -9,12 +9,13 @@ import {
   Settings,
   Menu,
   LogOut,
-  Building2,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -23,6 +24,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type NavItem = {
   href: string;
@@ -32,12 +39,12 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
-  { href: "/dashboard/content", label: "Content", icon: <FileVideo className="h-4 w-4" /> },
-  { href: "/dashboard/assignments", label: "Assignments", icon: <ClipboardList className="h-4 w-4" /> },
-  { href: "/dashboard/team", label: "Team", icon: <Users className="h-4 w-4" />, adminOnly: true },
-  { href: "/dashboard/insights", label: "Insights", icon: <BarChart3 className="h-4 w-4" />, adminOnly: true },
-  { href: "/dashboard/settings", label: "Settings", icon: <Settings className="h-4 w-4" />, adminOnly: true },
+  { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" /> },
+  { href: "/dashboard/content", label: "Content", icon: <FileVideo className="h-[18px] w-[18px]" /> },
+  { href: "/dashboard/assignments", label: "Assignments", icon: <ClipboardList className="h-[18px] w-[18px]" /> },
+  { href: "/dashboard/team", label: "Team", icon: <Users className="h-[18px] w-[18px]" />, adminOnly: true },
+  { href: "/dashboard/insights", label: "Insights", icon: <BarChart3 className="h-[18px] w-[18px]" />, adminOnly: true },
+  { href: "/dashboard/settings", label: "Settings", icon: <Settings className="h-[18px] w-[18px]" />, adminOnly: true },
 ];
 
 function Navigation({
@@ -55,9 +62,11 @@ function Navigation({
           <Link
             key={item.href}
             href={item.href}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+            className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-stone-500 transition-all hover:bg-stone-100 hover:text-stone-900"
           >
-            {item.icon}
+            <span className="text-stone-400 transition-colors group-hover:text-stone-600">
+              {item.icon}
+            </span>
             {item.label}
           </Link>
         ))}
@@ -87,15 +96,36 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const adminDb = createAdminClient();
+
+  let { data: profile } = await adminDb
     .from("users")
     .select("full_name, role, org_id")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
+
+  if (!profile) {
+    const provisioned = await provisionSignupIfNeeded(supabase, user);
+    if (!provisioned.ok) {
+      redirect(
+        `/auth/signout?error=${encodeURIComponent(provisioned.error)}`,
+      );
+    }
+    const { data: refetched } = await adminDb
+      .from("users")
+      .select("full_name, role, org_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    profile = refetched;
+  }
 
   const role = profile?.role ?? "employee";
   const isAdmin = role === "admin" || role === "super_admin";
   const fullName = profile?.full_name || user.email?.split("@")[0] || "User";
+
+  if (role === "employee") {
+    redirect("/employee/my-plans");
+  }
 
   let orgName = "Organization";
   if (profile?.org_id) {
@@ -115,94 +145,142 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      {/* Top header */}
-      <header className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3">
+    <TooltipProvider delayDuration={0}>
+      <div className="flex min-h-screen">
+      {/* Desktop sidebar */}
+      <aside className="hidden w-64 shrink-0 border-r border-stone-150 bg-stone-50/50 md:flex md:flex-col">
+        <div className="flex h-full flex-col px-4 py-5">
+          {/* Logo + org */}
+          <div className="space-y-4">
+            <Link href="/dashboard" className="flex items-center gap-2.5 px-1">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 text-xs font-bold text-white shadow-sm">
+                R
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold tracking-tight text-stone-900">
+                  Recaller
+                </p>
+              </div>
+            </Link>
+
+            <div className="rounded-xl bg-stone-100/80 px-3 py-2.5">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">
+                Workspace
+              </p>
+              <p className="mt-0.5 truncate text-sm font-medium text-stone-700">
+                {orgName}
+              </p>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <Separator className="my-4 bg-stone-150" />
+          <Navigation className="flex flex-1 flex-col gap-0.5" isAdmin={isAdmin} />
+
+          {/* User footer */}
+          <Separator className="mb-3 bg-stone-150" />
+          <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
+            <Avatar className="h-8 w-8 ring-2 ring-stone-100">
+              <AvatarFallback className="bg-gradient-to-br from-stone-200 to-stone-300 text-[10px] font-bold text-stone-600">
+                {getInitials(fullName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-stone-800">
+                {fullName}
+              </p>
+              <p className="truncate text-[11px] text-stone-400">
+                {role === "super_admin" ? "Super Admin" : role.charAt(0).toUpperCase() + role.slice(1)}
+              </p>
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <form action={logout}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-stone-400 hover:text-stone-700">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </form>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">
+                Sign out
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex flex-1 flex-col">
+        {/* Mobile header */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-stone-150 bg-white/80 px-4 py-3 backdrop-blur-xl md:hidden">
           <div className="flex items-center gap-3">
-            {/* Mobile menu */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button className="md:hidden" size="icon" variant="ghost">
+                <Button size="icon" variant="ghost" className="h-9 w-9">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2 text-left">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-white">
+              <SheetContent side="left" className="w-72 border-stone-150 bg-stone-50 p-0">
+                <SheetHeader className="px-5 pt-5">
+                  <SheetTitle className="flex items-center gap-2.5 text-left">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 text-xs font-bold text-white shadow-sm">
                       R
                     </div>
                     Recaller
                   </SheetTitle>
                 </SheetHeader>
-                <div className="mt-2 px-1">
-                  <div className="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2">
-                    <Building2 className="h-4 w-4 text-zinc-400" />
-                    <span className="text-sm font-medium text-zinc-700">{orgName}</span>
+                <div className="px-4 pt-4">
+                  <div className="rounded-xl bg-stone-100/80 px-3 py-2.5">
+                    <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">
+                      Workspace
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-medium text-stone-700">
+                      {orgName}
+                    </p>
                   </div>
                 </div>
-                <Navigation className="mt-3 flex flex-col gap-0.5 px-1" isAdmin={isAdmin} />
+                <Separator className="my-3 mx-4 bg-stone-150" />
+                <Navigation className="flex flex-col gap-0.5 px-4" isAdmin={isAdmin} />
               </SheetContent>
             </Sheet>
-
-            {/* Logo */}
-            <Link href="/dashboard" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-white">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-stone-800 to-stone-900 text-xs font-bold text-white">
                 R
               </div>
-              <span className="hidden text-sm font-semibold sm:inline">Recaller</span>
             </Link>
-
-            <Separator orientation="vertical" className="mx-1 hidden h-5 md:block" />
-            <span className="hidden text-sm text-zinc-500 md:inline">{orgName}</span>
           </div>
-
-          {/* User area */}
-          <div className="flex items-center gap-3">
-            <div className="hidden flex-col items-end sm:flex">
-              <span className="text-sm font-medium text-zinc-800">{fullName}</span>
-              <Badge variant="secondary" className="text-[10px] uppercase">
-                {role === "super_admin" ? "Super Admin" : role}
-              </Badge>
-            </div>
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-zinc-200 text-xs font-semibold text-zinc-700">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-stone-500">{fullName.split(" ")[0]}</span>
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="bg-gradient-to-br from-stone-200 to-stone-300 text-[9px] font-bold text-stone-600">
                 {getInitials(fullName)}
               </AvatarFallback>
             </Avatar>
-            <form action={logout}>
-              <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-zinc-800">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </form>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main content area */}
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[240px_1fr]">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:block">
-          <div className="sticky top-20 space-y-4">
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-zinc-400" />
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                  Organization
-                </span>
-              </div>
-              <p className="text-sm font-semibold text-zinc-800">{orgName}</p>
-            </div>
-            <div className="rounded-xl border bg-white p-3 shadow-sm">
-              <Navigation className="flex flex-col gap-0.5" isAdmin={isAdmin} />
-            </div>
+        {/* Desktop top bar — breadcrumb area */}
+        <header className="hidden border-b border-stone-100 bg-white/60 backdrop-blur-sm md:flex md:items-center md:justify-between md:px-8 md:py-4">
+          <div className="flex items-center gap-2 text-sm text-stone-400">
+            <Link href="/dashboard" className="transition-colors hover:text-stone-600">
+              {orgName}
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <span className="font-medium text-stone-700">Dashboard</span>
           </div>
-        </aside>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-stone-400">
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+            </span>
+          </div>
+        </header>
 
         {/* Page content */}
-        <main className="min-w-0">{children}</main>
+        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
+          <div className="mx-auto max-w-5xl">{children}</div>
+        </main>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

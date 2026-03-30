@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:phase2": "node scripts/phase2-smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
@@ -19,6 +20,7 @@
     "@vercel/slack-bolt": "^1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
     "inngest": "^4.1.0",
     "lucide-react": "^1.7.0",
     "mammoth": "^1.12.0",

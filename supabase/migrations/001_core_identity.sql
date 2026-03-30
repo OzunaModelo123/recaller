@@ -55,7 +55,8 @@ create policy "org_select_own_org"
 create policy "org_insert_authenticated"
   on public.organisations
   for insert
-  with check (auth.role() = 'authenticated');
+  to authenticated
+  with check (auth.uid() is not null);
 
 create policy "org_update_own_org"
   on public.organisations

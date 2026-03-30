@@ -1,92 +1,90 @@
-"use client";
-
-import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
-  const router = useRouter();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const supabase = createClient();
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (signInError) {
-      setError(signInError.message);
-      return;
-    }
-
-    router.push("/dashboard");
-    router.refresh();
-  }
-
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-8">
-      <div className="mx-auto w-full max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Log in to Recaller</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={onSubmit}>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+    <main className="grid min-h-screen lg:grid-cols-2">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900/80 lg:block">
+        <div className="grain absolute inset-0" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(217,170,100,0.15),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(120,80,40,0.2),transparent_60%)]" />
+
+        <div className="relative z-10 flex h-full flex-col justify-between p-12">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-sm font-bold text-white backdrop-blur-sm">
+              R
+            </div>
+            <span className="text-lg font-semibold tracking-tight text-white">
+              Recaller
+            </span>
+          </Link>
+
+          <div className="max-w-md space-y-6">
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-white text-balance">
+              Training that sticks, powered by AI.
+            </h1>
+            <p className="text-base leading-relaxed text-stone-300">
+              Transform any content into actionable learning plans your team
+              actually completes. From YouTube videos to PDFs — AI does the
+              heavy lifting.
+            </p>
+            <div className="flex gap-6 pt-2">
+              <div>
+                <p className="text-2xl font-semibold text-white">2-10</p>
+                <p className="mt-0.5 text-xs text-stone-400">
+                  Steps per plan
+                </p>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+              <div className="w-px bg-white/10" />
+              <div>
+                <p className="text-2xl font-semibold text-white">5 sec</p>
+                <p className="mt-0.5 text-xs text-stone-400">
+                  YouTube to plan
+                </p>
               </div>
+              <div className="w-px bg-white/10" />
+              <div>
+                <p className="text-2xl font-semibold text-white">3x</p>
+                <p className="mt-0.5 text-xs text-stone-400">
+                  Better retention
+                </p>
+              </div>
+            </div>
+          </div>
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <p className="text-xs text-stone-500">
+            &copy; {new Date().getFullYear()} Recaller. Built for teams that
+            value real learning.
+          </p>
+        </div>
+      </div>
 
-              <Button className="w-full" disabled={loading} type="submit">
-                {loading ? "Logging in..." : "Log in"}
-              </Button>
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between p-6 lg:justify-end">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 lg:hidden"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-900 text-xs font-bold text-white">
+              R
+            </div>
+            <span className="text-base font-semibold tracking-tight text-stone-900">
+              Recaller
+            </span>
+          </Link>
+          <Link
+            href="/signup"
+            className="text-sm font-medium text-stone-500 transition-colors hover:text-stone-900"
+          >
+            Create organization &rarr;
+          </Link>
+        </div>
 
-              <p className="text-sm text-zinc-600">
-                Need an account?{" "}
-                <Link className="underline" href="/signup">
-                  Sign up
-                </Link>
-              </p>
-            </form>
-          </CardContent>
-        </Card>
+        <div className="flex flex-1 items-center justify-center px-6 pb-12">
+          <div className="w-full max-w-sm">
+            <LoginForm />
+          </div>
+        </div>
       </div>
     </main>
   );

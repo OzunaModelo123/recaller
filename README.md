@@ -265,7 +265,7 @@ src/
 <tr><th align="center" width="50">Phase</th><th align="left">Description</th><th align="center" width="80">Status</th></tr>
 <tr><td align="center"><code>00</code></td><td>Service accounts & API keys</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>01</code></td><td>Database schema, auth, dashboard shell</td><td align="center">&#9745;</td></tr>
-<tr><td align="center"><code>02</code></td><td>Content ingestion — YouTube, PDF, DOCX, Whisper</td><td align="center">&#9744;</td></tr>
+<tr><td align="center"><code>02</code></td><td>Content ingestion — YouTube, PDF, DOCX, Whisper</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>03</code></td><td>AI plan generation — analyze, generate, validate</td><td align="center">&#9744;</td></tr>
 <tr><td align="center"><code>04</code></td><td>Employee web interface & step completion</td><td align="center">&#9744;</td></tr>
 <tr><td align="center"><code>05</code></td><td>Manager dashboard & distribution</td><td align="center">&#9744;</td></tr>
