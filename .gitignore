@@ -38,6 +38,19 @@ yarn-error.log*
 # vercel
 .vercel
 
+# cursor IDE internals
+.cursor/
+
+# auto-generated agent files
+AGENTS.md
+
+# Next.js boilerplate assets (unused)
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+
 # supabase local
 supabase/.temp/
 
