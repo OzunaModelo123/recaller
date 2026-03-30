@@ -1,0 +1,35 @@
+---
+description: Recaller project context — product, architecture, tech stack, and build order. Loaded on every conversation.
+alwaysApply: true
+---
+
+# Recaller Project Context
+
+Recaller is a B2B SaaS training execution platform.
+Core flow: ingest content → AI generates multi-step plans (2–10 steps, AI-suggested based on content complexity, admin-adjustable) → assign to employees → track completions → notify via Slack/Teams/email → report insights.
+
+## Tech Stack
+
+- Next.js 16 App Router + TypeScript + Tailwind CSS v4
+- UI: shadcn/ui (nova preset)
+- DB/Auth: Supabase (Postgres + RLS + pgvector)
+- AI: Claude 3.7 Sonnet (analysis + reports), GPT-4.1 (plan gen), GPT-4.1 Mini (validation), text-embedding-3-small (1536d)
+- Jobs: Inngest | Billing: Stripe | Email: Resend | Observability: Sentry
+- Slack: @vercel/slack-bolt + @slack/web-api | Teams: Bot Connector REST API (no BotBuilder SDK)
+- Content extraction: youtube-transcript, pdf-parse, mammoth; Whisper only for audio/video without transcripts
+
+## Build Order (strict)
+
+Phase 0 accounts → 1 schema/auth → 2 content ingestion → 3 AI plans → 4 employee UI → 5 manager dashboard → 6 Slack bot → 7 Teams bot → 8 notifications/nudges → 9 billing → 10 insights → 11 calendar → 12 deploy
+
+## Key Architecture Decisions
+
+- Tenant boundary is `org_id` everywhere (DB, API, notifications)
+- NotificationService routes to Slack/Teams/email based on org+user identity fields
+- Runtime analytics uses pre-written SQL; AI only writes narrative (never generates production SQL)
+- All routes under `src/app/dashboard/` for admin, `src/app/employee/` for employees
+- Supabase SSR pattern: browser client, server client with cookies, middleware for session refresh + route protection
+
+## Build Guide
+
+The full 13-phase build specification is at `.cursor/plans/recaller_build_guide_aba69b5a.plan.md`. Always reference it before implementing a new phase.

@@ -1,0 +1,29 @@
+---
+description: Tracks which build phases are complete and current project state
+alwaysApply: true
+---
+
+# Build Phase Status
+
+## Completed
+
+- **Phase 0**: External accounts created, .env.local populated (Supabase, OpenAI, Anthropic, Stripe, Slack client/secret/signing, Resend, Sentry, Inngest)
+- **Phase 1**: Schema + Auth — 6 migrations applied, Supabase linked (ref: pivutjovcqtbvdnbqrgh), signup/login/callback working, dashboard shell with role-based nav, employee layout, generated TypeScript types at src/types/database.ts
+
+## Deferred Keys (not needed yet)
+
+- STRIPE_WEBHOOK_SECRET → Phase 9
+- SLACK_BOT_TOKEN, SLACK_STATE_SECRET → Phase 6
+- TEAMS_APP_ID, TEAMS_APP_PASSWORD, TEAMS_TENANT_ID → Phase 7
+- SENTRY_AUTH_TOKEN → Phase 12
+
+## Next Phase
+
+Phase 2: Content Ingestion — see `.cursor/plans/recaller_build_guide_aba69b5a.plan.md` under "### Phase 2"
+
+## When Starting a New Phase
+
+1. Read the phase section in the build guide
+2. Read `.cursor/rules/recaller-project.mdc` for architecture context
+3. Check this file for what's already complete
+4. Update this file when the phase is done

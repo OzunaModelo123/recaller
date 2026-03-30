@@ -1,0 +1,38 @@
+---
+description: Recaller database schema, RLS conventions, and migration order
+globs: "**/*.sql,**/supabase/**,**/database.ts"
+alwaysApply: false
+---
+
+# Database Schema & Conventions
+
+## 6 Migrations (applied, in order)
+
+1. `001_core_identity` — organisations, users, invitations + pgvector extension
+2. `002_content_plans` — content_items, content_embeddings(VECTOR 1536), plans, plan_steps, plan_embeddings(VECTOR 1536) + HNSW indexes
+3. `003_assignments_completions` — groups, group_members, assignments, step_completions
+7. `007_flexible_step_count` — relaxed step_number constraint from 1-4 to 1-10 on plan_steps and step_completions
+
+**Design decision**: Step count is flexible (2–10). AI suggests optimal count based on content complexity; admins can add/remove/reorder steps before publishing.
+4. `004_notifications_messaging` — notifications, notification_suppressions, slack_installations, teams_installations
+5. `005_billing` — subscriptions
+6. `006_insights` — insight_reports, analytics_snapshots
+
+## RLS Rules
+
+- Every table has RLS enabled
+- User-facing tables: org-scoped SELECT, admin-only INSERT/UPDATE
+- Employees can SELECT own assignments and INSERT own step_completions
+- Background/webhook tables (notifications, billing, insights): service_role write policies
+- Slack/Teams identity columns exist from day one on organisations and users tables
+
+## SQL Conventions
+
+- UUID PKs via `gen_random_uuid()`
+- All timestamps as `TIMESTAMPTZ`
+- Enums via `CHECK` constraints (not Postgres ENUM types)
+- Foreign key seed order: organisations → users → content_items → plans → plan_steps → groups → assignments → step_completions
+
+## Generated Types
+
+`src/types/database.ts` — auto-generated via `npx supabase gen types typescript`. Re-run after any migration change.
