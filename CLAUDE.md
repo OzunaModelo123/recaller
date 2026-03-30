@@ -42,4 +42,4 @@ The GitHub CLI (`gh`) is installed at `/tmp/gh_2.89.0_macOS_arm64/bin/gh`. Use i
 
 Phase 0 and Phase 1 complete. Next: Phase 2 (Content Ingestion).
 See `.cursor/rules/phase-tracking.mdc` for detailed status.
-Repo: https://github.com/OzunaModelo123/recaller (private)
+Repo: https://github.com/OzunaModelo123/recaller (public)
