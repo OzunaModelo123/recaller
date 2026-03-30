@@ -1,0 +1,36 @@
+---
+description: Recaller database schema, RLS conventions, and migration order
+globs: "**/*.sql,**/supabase/**,**/database.ts"
+alwaysApply: false
+---
+
+# Database schema & conventions
+
+## 7 migrations (apply in order)
+
+1. `001_core_identity` — organisations, users, invitations + pgvector extension
+2. `002_content_plans` — content_items, content_embeddings (VECTOR 1536), plans, plan_steps, plan_embeddings (VECTOR 1536) + HNSW indexes  
+   - Original `plan_steps.step_number` and `step_completions` alignment: see 007.
+3. `003_assignments_completions` — groups, group_members, assignments, step_completions
+4. `004_notifications_messaging` — notifications, notification_suppressions, slack_installations, teams_installations
+5. `005_billing` — subscriptions
+6. `006_insights` — insight_reports, analytics_snapshots
+7. `007_flexible_step_count` — `step_number` CHECK relaxed to **1–10** on `plan_steps` and `step_completions` (was 1–4 in 002).
+
+**Design:** Plans have **2–10** behavioral steps. AI suggests count from content complexity; admins can edit before publish.
+
+## RLS
+
+- RLS on every table.
+- User tables: org-scoped; admin write patterns as per migrations.
+- Employees: own assignments + insert own `step_completions`.
+- Jobs/webhooks: service_role where defined.
+
+## SQL conventions
+
+- UUID PKs (`gen_random_uuid()`), `TIMESTAMPTZ`, `CHECK` for enums (not Postgres ENUM types).
+- FK order: organisations → users → content_items → plans → plan_steps → groups → assignments → step_completions.
+
+## Types
+
+Regenerate after schema changes: `npx supabase gen types typescript --project-id <ref> > src/types/database.ts`

@@ -1,0 +1,11 @@
+# Cursor indexing — cuts noise in @-mentions and search; does not affect the app or builds.
+node_modules/
+.next/
+out/
+build/
+coverage/
+.git/
+supabase/.temp/
+.vercel/
+.npm-cache/
+*.tsbuildinfo

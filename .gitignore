@@ -38,8 +38,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# cursor IDE internals
-.cursor/
+# Cursor — commit `.cursor/rules/*.mdc` + `.cursor/handoff_phase*.md` only; plans & other IDE data stay local
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/handoff_phase*.md
 
 # auto-generated agent files
 AGENTS.md

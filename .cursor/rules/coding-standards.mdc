@@ -1,0 +1,40 @@
+---
+description: Recaller TypeScript and React coding standards
+globs: "**/*.ts,**/*.tsx"
+alwaysApply: false
+---
+
+# Coding Standards
+
+## Supabase Access
+
+- Browser components: `import { createClient } from "@/lib/supabase/client"`
+- Server components/routes: `import { createClient } from "@/lib/supabase/server"`
+- Never use service_role key in client-side code
+- Never expose SUPABASE_SERVICE_ROLE_KEY to the browser
+
+## Data Access
+
+- Always scope queries by `org_id` — RLS enforces this, but be explicit
+- Use `.single()` for expected-one-row queries, `.maybeSingle()` when row may not exist
+- For background jobs (Inngest, webhooks), use a service-role Supabase client
+
+## Route Structure
+
+- Auth pages: `src/app/(auth)/` — route group, no URL prefix
+- Dashboard: `src/app/dashboard/` — real URL segment `/dashboard/*`
+- Employee: `src/app/employee/` — real URL segment `/employee/*`
+- API routes: `src/app/api/` — REST endpoints
+
+## Components
+
+- Use shadcn/ui for all UI primitives (Button, Card, Input, etc.)
+- Mobile-first responsive design with Tailwind
+- Server Components by default; add "use client" only when needed (forms, interactivity)
+- Use Lucide icons via `lucide-react`
+
+## Error Handling
+
+- Show user-facing errors inline (not console.log)
+- API routes should return proper HTTP status codes with JSON error bodies
+- Wrap Supabase calls in error checks; never silently swallow errors
