@@ -10,7 +10,6 @@
     "test:phase2": "node scripts/phase2-smoke.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
     "@react-email/components": "^1.0.10",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/nextjs": "^10.46.0",

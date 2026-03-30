@@ -19,7 +19,6 @@ Most training platforms tell you who *completed* a course.<br />
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat-square&logo=openai&logoColor=white)
-![Anthropic](https://img.shields.io/badge/Claude-D4A574?style=flat-square&logo=anthropic&logoColor=white)
 ![Stripe](https://img.shields.io/badge/Stripe-635BFF?style=flat-square&logo=stripe&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 
@@ -65,7 +64,7 @@ Recaller transforms passive training content into active, measurable behavioral 
 </td>
 <td>
 <b>Analyze & Generate</b><br />
-<sub>A multi-model AI pipeline (Claude for deep analysis, GPT-4.1 for structured generation) breaks content into 2–10 behavioral steps — not quiz questions, but <i>actions employees should take</i> in their actual work.</sub>
+<sub>A three-stage AI pipeline (GPT-4.1 analysis, generation, and GPT-4.1 Mini validation) breaks content into 2–10 behavioral steps — not quiz questions, but <i>actions employees should take</i> in their actual work.</sub>
 </td>
 </tr>
 <tr>
@@ -163,8 +162,8 @@ Recaller transforms passive training content into active, measurable behavioral 
           ┌──────┴──────┐       ┌──────┴──────┐       ┌──────┴──────┐
           │  Supabase   │       │  AI Layer   │       │  Inngest    │
           │  ─────────  │       │  ─────────  │       │  ─────────  │
-          │  Postgres   │       │  Claude 3.7 │       │  Background │
-          │  RLS        │       │  GPT-4.1    │       │  Jobs &     │
+          │  Postgres   │       │  GPT-4.1    │       │  Background │
+          │  RLS        │       │  family     │       │  Jobs &     │
           │  pgvector   │       │  Embeddings │       │  Scheduling │
           │  Auth       │       │             │       │             │
           └─────────────┘       └─────────────┘       └─────────────┘
@@ -179,7 +178,7 @@ Recaller transforms passive training content into active, measurable behavioral 
 | **Framework** | Next.js 16 (App Router) | Server-first React with TypeScript |
 | **Styling** | Tailwind CSS v4 + shadcn/ui | Clean, accessible component system |
 | **Database** | Supabase Postgres | Row Level Security + pgvector embeddings |
-| **AI — Analysis** | Claude 3.7 Sonnet | Deep content understanding |
+| **AI — Analysis** | GPT-4.1 | Deep content understanding |
 | **AI — Generation** | GPT-4.1 | Structured behavioral step creation |
 | **AI — Validation** | GPT-4.1 Mini | Cost-efficient quality checks |
 | **AI — Embeddings** | text-embedding-3-small | 1536-dim semantic search |
@@ -290,7 +289,7 @@ Authoritative **phase status** and architecture live in **`.cursor/rules/recalle
 
 | Decision | Rationale |
 |:---------|:----------|
-| **Multi-model AI** | Claude excels at analysis; GPT-4.1 excels at structured output. Using each where it's strongest. |
+| **Structured AI pipeline** | GPT-4.1 for analysis and plan JSON; GPT-4.1 Mini for cost-efficient validation; strict JSON schemas for reliability. |
 | **Behavioral steps, not quizzes** | Quizzes test recall. Steps test *implementation*. That's the behavioral signal. |
 | **Flexible step count (2–10)** | AI suggests optimal count based on content complexity. Admins can adjust before publishing. |
 | **Deliver where they work** | Slack/Teams/email delivery means zero friction. No new app to adopt. |
@@ -312,6 +311,6 @@ Authoritative **phase status** and architecture live in **`.cursor/rules/recalle
 <br />
 <br />
 
-<sub>Built with Next.js, Supabase, Claude, and GPT-4.1</sub>
+<sub>Built with Next.js, Supabase, and OpenAI (GPT-4.1 family)</sub>
 
 </div>

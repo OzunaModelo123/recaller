@@ -1,5 +1,5 @@
 import type { OrgContext } from "./orgContext";
-import { ANALYSIS_MODEL, anthropicClient } from "./modelRouter";
+import { ANALYSIS_MODEL, openaiClient } from "./modelRouter";
 
 export type ContentAnalysis = {
   key_concepts: string[];
@@ -13,15 +13,39 @@ export type ContentAnalysis = {
   summary: string;
 };
 
-function stripJsonPayload(text: string): string {
-  const t = text.trim();
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence?.[1]) return fence[1]!.trim();
-  const start = t.indexOf("{");
-  const end = t.lastIndexOf("}");
-  if (start >= 0 && end > start) return t.slice(start, end + 1);
-  return t;
-}
+const contentAnalysisJsonSchema = {
+  name: "content_analysis",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "key_concepts",
+      "skills_taught",
+      "behavioral_changes_advocated",
+      "applicable_roles",
+      "complexity",
+      "category",
+      "estimated_content_quality",
+      "risk_flags",
+      "summary",
+    ],
+    properties: {
+      key_concepts: { type: "array", items: { type: "string" } },
+      skills_taught: { type: "array", items: { type: "string" } },
+      behavioral_changes_advocated: { type: "array", items: { type: "string" } },
+      applicable_roles: { type: "array", items: { type: "string" } },
+      complexity: {
+        type: "string",
+        enum: ["beginner", "intermediate", "advanced"],
+      },
+      category: { type: "string" },
+      estimated_content_quality: { type: "integer" },
+      risk_flags: { type: "array", items: { type: "string" } },
+      summary: { type: "string" },
+    },
+  },
+} as const;
 
 export async function analyzeContent(
   transcript: string,
@@ -42,50 +66,42 @@ How they apply training: ${applications}
 
 Analyze the following transcript and return a structured analysis. Do NOT generate a plan — only analyze.
 
-Return JSON only (no markdown) with this exact shape:
-{
-  "key_concepts": string[],
-  "skills_taught": string[],
-  "behavioral_changes_advocated": string[],
-  "applicable_roles": string[],
-  "complexity": "beginner" | "intermediate" | "advanced",
-  "category": string,
-  "estimated_content_quality": number (1-5 integer),
-  "risk_flags": string[],
-  "summary": string (3 sentences)
-}`;
+Fill every field in the schema:
+- key_concepts: 3–5 most important ideas taught
+- skills_taught: specific skills the content develops
+- behavioral_changes_advocated: what the content wants people to DO differently
+- applicable_roles: which of the company's roles would benefit most (use role names from context when relevant)
+- complexity: beginner | intermediate | advanced
+- category: e.g. sales technique, compliance, leadership, technical skills
+- estimated_content_quality: integer 1–5 (is this good training content?)
+- risk_flags: concerns (outdated info, compliance-sensitive, etc.) — empty array if none
+- summary: exactly three sentences on what this content teaches`;
 
   const userContent = `Transcript:\n\n${transcript.slice(0, 200_000)}`;
 
-  const msg = await anthropicClient.messages.create({
+  const completion = await openaiClient.chat.completions.create({
     model: ANALYSIS_MODEL,
-    max_tokens: 4096,
-    system: system,
-    messages: [{ role: "user", content: userContent }],
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: userContent },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: contentAnalysisJsonSchema,
+    },
   });
 
-  const textBlock = msg.content.find((c) => c.type === "text");
-  const rawText =
-    textBlock && textBlock.type === "text" ? textBlock.text : "";
-  const jsonStr = stripJsonPayload(rawText);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonStr) as unknown;
-  } catch {
-    throw new Error("Stage 1 analysis returned invalid JSON");
-  }
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error("Stage 1 analysis: empty model response");
 
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Stage 1 analysis: invalid object");
-  }
-  const o = parsed as Record<string, unknown>;
+  const parsed = JSON.parse(content) as Record<string, unknown>;
 
   const strArr = (k: string): string[] =>
-    Array.isArray(o[k])
-      ? (o[k] as unknown[]).filter((x): x is string => typeof x === "string")
+    Array.isArray(parsed[k])
+      ? (parsed[k] as unknown[]).filter((x): x is string => typeof x === "string")
       : [];
 
-  const complexityRaw = o.complexity;
+  const complexityRaw = parsed.complexity;
   const complexity =
     complexityRaw === "beginner" ||
     complexityRaw === "intermediate" ||
@@ -93,7 +109,10 @@ Return JSON only (no markdown) with this exact shape:
       ? complexityRaw
       : "intermediate";
 
-  let q = typeof o.estimated_content_quality === "number" ? o.estimated_content_quality : 3;
+  let q =
+    typeof parsed.estimated_content_quality === "number"
+      ? parsed.estimated_content_quality
+      : 3;
   if (q < 1) q = 1;
   if (q > 5) q = 5;
 
@@ -103,9 +122,9 @@ Return JSON only (no markdown) with this exact shape:
     behavioral_changes_advocated: strArr("behavioral_changes_advocated").slice(0, 8),
     applicable_roles: strArr("applicable_roles").slice(0, 8),
     complexity,
-    category: typeof o.category === "string" ? o.category : "general",
+    category: typeof parsed.category === "string" ? parsed.category : "general",
     estimated_content_quality: Math.round(q),
     risk_flags: strArr("risk_flags").slice(0, 10),
-    summary: typeof o.summary === "string" ? o.summary : "",
+    summary: typeof parsed.summary === "string" ? parsed.summary : "",
   };
 }
