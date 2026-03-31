@@ -10,6 +10,13 @@ import {
   type DigestPayload,
 } from "@/lib/slack/blockKit";
 
+type AssignmentSlackPayload = {
+  assignmentId: string;
+  planTitle: string;
+  /** DM channel id from chat.postMessage (D…) — required for reliable chat.update */
+  slack_dm_channel_id?: string;
+};
+
 export class SlackNotifier {
   private client: WebClient;
 
@@ -98,12 +105,21 @@ export class SlackNotifier {
     });
 
     if (result.ts) {
+      const dmChannelId =
+        typeof result.channel === "string" && result.channel.length > 0
+          ? result.channel
+          : undefined;
+      const payload: AssignmentSlackPayload = {
+        assignmentId: assignment.id,
+        planTitle,
+        ...(dmChannelId ? { slack_dm_channel_id: dmChannelId } : {}),
+      };
       await sb.from("notifications").insert({
         org_id: notification.orgId,
         user_id: notification.userId,
         type: "assignment",
         channel: "slack",
-        payload: { assignmentId: assignment.id, planTitle },
+        payload,
         slack_message_ts: result.ts,
         sent_at: new Date().toISOString(),
       });
@@ -152,11 +168,7 @@ export class SlackNotifier {
     });
   }
 
-  async sendStepConfirmation(
-    slackUserId: string,
-    assignmentId: string,
-    _stepNumber: number,
-  ) {
+  async sendStepConfirmation(slackUserId: string, assignmentId: string) {
     const sb = createAdminClient();
 
     const { data: assignment } = await sb
@@ -168,16 +180,22 @@ export class SlackNotifier {
       .single();
     if (!assignment) return;
 
-    const { data: notif } = await sb
+    const { data: notifRows, error: notifErr } = await sb
       .from("notifications")
-      .select("slack_message_ts")
+      .select("slack_message_ts, payload")
       .eq("user_id", assignment.assigned_to)
       .eq("org_id", assignment.org_id)
       .eq("type", "assignment")
       .contains("payload", { assignmentId: assignment.id })
-      .maybeSingle();
+      .order("sent_at", { ascending: false, nullsFirst: false })
+      .limit(1);
 
+    if (notifErr || !notifRows?.length) return;
+    const notif = notifRows[0];
     if (!notif?.slack_message_ts) return;
+
+    const storedPayload = notif.payload as AssignmentSlackPayload | null;
+    const storedDmChannel = storedPayload?.slack_dm_channel_id?.trim();
 
     const { data: steps } = await sb
       .from("plan_steps")
@@ -221,18 +239,28 @@ export class SlackNotifier {
       completedSet,
     );
 
-    const convoResp = await this.client.conversations.open({
-      users: slackUserId,
-    });
-    const channelId = convoResp.channel?.id;
+    let channelId = storedDmChannel;
+    if (!channelId) {
+      const convoResp = await this.client.conversations.open({
+        users: slackUserId,
+      });
+      channelId = convoResp.channel?.id;
+    }
     if (!channelId) return;
 
-    await this.client.chat.update({
+    const update = await this.client.chat.update({
       channel: channelId,
       ts: notif.slack_message_ts,
       blocks,
       text: `Training plan update: ${planTitle}`,
     });
+    if (!update.ok) {
+      console.error(
+        "[SlackNotifier] chat.update failed",
+        update.error,
+        update.response_metadata,
+      );
+    }
   }
 
   async sendWeeklyDigest(channelId: string, digest: DigestPayload) {

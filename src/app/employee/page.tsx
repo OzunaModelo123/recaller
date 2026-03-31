@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardList,
   ListChecks,
+  Plug,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/design/empty-state";
@@ -99,6 +100,13 @@ export default async function EmployeeHomePage() {
                 <ArrowRight className="h-4 w-4 shrink-0 opacity-90" />
               </Link>
             ) : null}
+            <Link
+              href="/employee/integrations"
+              className="inline-flex h-11 items-center gap-2 rounded-lg border border-sidebar-border/90 bg-transparent px-5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Plug className="h-4 w-4 shrink-0 opacity-90" />
+              Integrations
+            </Link>
           </div>
         </div>
       </section>

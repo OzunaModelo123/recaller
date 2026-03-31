@@ -12,9 +12,9 @@ describe("normalizeProofType", () => {
     expect(normalizeProofType("none")).toBe("none");
   });
 
-  it("falls back to text for invalid values", () => {
-    expect(normalizeProofType("bogus")).toBe("text");
-    expect(normalizeProofType(null)).toBe("text");
+  it("falls back to none for invalid or missing values (safe DB enum)", () => {
+    expect(normalizeProofType("bogus")).toBe("none");
+    expect(normalizeProofType(null)).toBe("none");
   });
 });
 

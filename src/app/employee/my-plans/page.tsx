@@ -55,16 +55,31 @@ export default async function MyPlansPage({ searchParams }: Props) {
           title="My Plans"
           subtitle="Every plan is broken into clear steps. Open one to follow instructions, submit proof, and track your progress."
           action={
-            sorted.length === 0 ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <Link
-                href="/employee"
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                href="/employee/integrations"
+                className="font-medium text-primary hover:text-primary/80 transition-colors"
               >
-                Home
+                Integrations
               </Link>
-            ) : null
+              {sorted.length === 0 ? (
+                <Link
+                  href="/employee"
+                  className="font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Home
+                </Link>
+              ) : null}
+            </div>
           }
         />
+        <p className="text-xs text-muted-foreground">
+          Slack and Teams: manage under{" "}
+          <Link href="/employee/integrations" className="font-medium text-primary underline-offset-2 hover:underline">
+            Integrations
+          </Link>
+          .
+        </p>
       </div>
 
       {showEmployeeSlackConnect ? (

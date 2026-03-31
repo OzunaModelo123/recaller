@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Home } from "lucide-react";
+import { BookOpen, Home, Plug } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,13 @@ const items = [
     label: "My Plans",
     icon: BookOpen,
     isActive: (p: string) => p.startsWith("/employee/my-plans"),
+  },
+  {
+    href: "/employee/integrations",
+    label: "Integrations",
+    icon: Plug,
+    isActive: (p: string) =>
+      p === "/employee/integrations" || p.startsWith("/employee/integrations/"),
   },
 ] as const;
 

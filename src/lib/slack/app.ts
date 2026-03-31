@@ -15,10 +15,13 @@ import {
 } from "./blockKit";
 
 /**
- * VercelReceiver reads SLACK_CLIENT_ID / SLACK_CLIENT_SECRET / SLACK_STATE_SECRET from
- * process.env and auto-creates an OAuth installer. That conflicts with App({ authorize }).
- * OAuth is handled by our /api/slack/install + /api/slack/oauth routes instead.
+ * Lazy singletons — Bolt and VercelReceiver must not run at module scope because
+ * `next build` evaluates route modules during page-data collection when env vars
+ * like SLACK_SIGNING_SECRET are absent, which causes the build to crash.
  */
+let _receiver: VercelReceiver | null = null;
+let _app: App | null = null;
+
 function createReceiverWithoutAutoOAuth(): VercelReceiver {
   const saved = {
     SLACK_CLIENT_ID: process.env.SLACK_CLIENT_ID,
@@ -31,6 +34,8 @@ function createReceiverWithoutAutoOAuth(): VercelReceiver {
   try {
     return new VercelReceiver({
       signingSecret: process.env.SLACK_SIGNING_SECRET!,
+      // Default 3001ms is tight when authorize() hits cold Supabase before ack().
+      ackTimeoutMs: 15_000,
     });
   } finally {
     if (saved.SLACK_CLIENT_ID !== undefined)
@@ -42,18 +47,60 @@ function createReceiverWithoutAutoOAuth(): VercelReceiver {
   }
 }
 
-export const receiver = createReceiverWithoutAutoOAuth();
+export function getReceiver(): VercelReceiver {
+  if (!_receiver) {
+    _receiver = createReceiverWithoutAutoOAuth();
+  }
+  return _receiver;
+}
 
-async function authorizeFromDb({
-  teamId,
-}: {
-  teamId?: string;
-  enterpriseId?: string;
-  isEnterpriseInstall?: boolean;
-}) {
+const SLACK_AUTH_CACHE_TTL_MS = 5 * 60 * 1000;
+type SlackAuthCacheEntry = {
+  botToken: string;
+  botUserId: string | undefined;
+  expiresAt: number;
+};
+const slackAuthByTeamId = new Map<string, SlackAuthCacheEntry>();
+
+function resolveTeamIdFromBody(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const b = body as Record<string, unknown>;
+  const team = b.team;
+  if (team && typeof team === "object" && team !== null) {
+    const id = (team as { id?: string }).id;
+    if (typeof id === "string" && id.length > 0) return id;
+  }
+  const user = b.user;
+  if (user && typeof user === "object" && user !== null) {
+    const tid = (user as { team_id?: string }).team_id;
+    if (typeof tid === "string" && tid.length > 0) return tid;
+  }
+  return undefined;
+}
+
+async function authorizeFromDb(
+  source: {
+    teamId?: string;
+    enterpriseId?: string;
+    isEnterpriseInstall?: boolean;
+  },
+  body?: unknown,
+) {
+  const teamId = source.teamId ?? resolveTeamIdFromBody(body);
   if (!teamId) {
     throw new Error("Missing teamId — cannot resolve Slack installation");
   }
+
+  const now = Date.now();
+  const cached = slackAuthByTeamId.get(teamId);
+  if (cached && cached.expiresAt > now) {
+    return {
+      botToken: cached.botToken,
+      botId: cached.botUserId,
+      botUserId: cached.botUserId,
+    };
+  }
+
   const sb = createAdminClient();
   const { data, error } = await sb
     .from("slack_installations")
@@ -63,10 +110,23 @@ async function authorizeFromDb({
   if (error || !data?.bot_token_encrypted) {
     throw new Error(`No Slack installation for team ${teamId}`);
   }
+  let botToken: string;
+  try {
+    botToken = openSlackBotToken(data.bot_token_encrypted);
+  } catch (e) {
+    console.error("[Slack] authorize: token decrypt failed", e);
+    throw e;
+  }
+  const botUserId = data.bot_user_id ?? undefined;
+  slackAuthByTeamId.set(teamId, {
+    botToken,
+    botUserId,
+    expiresAt: now + SLACK_AUTH_CACHE_TTL_MS,
+  });
   return {
-    botToken: openSlackBotToken(data.bot_token_encrypted),
-    botId: data.bot_user_id ?? undefined,
-    botUserId: data.bot_user_id ?? undefined,
+    botToken,
+    botId: botUserId,
+    botUserId,
   };
 }
 
@@ -109,12 +169,22 @@ async function assigneeSlackMatchesActor(
   return data.slack_user_id === slackActorId;
 }
 
-export const app = new App({
-  receiver,
-  authorize: authorizeFromDb,
-  /** Required for Vercel/serverless: createHandler() calls app.init(); Bolt only populates argAuthorize when this is true. */
-  deferInitialization: true,
-});
+function createApp(): App {
+  const boltApp = new App({
+    receiver: getReceiver(),
+    authorize: authorizeFromDb,
+    deferInitialization: true,
+  });
+  registerListeners(boltApp);
+  return boltApp;
+}
+
+export function getApp(): App {
+  if (!_app) {
+    _app = createApp();
+  }
+  return _app;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -323,31 +393,37 @@ async function callCompletionsApi(
 }
 
 // ---------------------------------------------------------------------------
+// Listeners — registered lazily via registerListeners()
+// ---------------------------------------------------------------------------
+
+function registerListeners(app: App) {
+
+// ---------------------------------------------------------------------------
 // Action: complete_step_{n} — button press
 // ---------------------------------------------------------------------------
 
 app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
+  await ack();
+
   type InteractionBody = {
     user: { id: string };
     team?: { id?: string };
     channel?: { id: string };
     message?: { ts: string };
+    trigger_id?: string;
   };
   const bodyTyped = body as InteractionBody;
 
   try {
-    if (action.type !== "button" || !action.value) {
-      await ack();
-      return;
-    }
+    if (action.type !== "button" || !action.value) return;
+
     const [assignmentId, stepNumStr] = action.value.split(":");
     const stepNumber = parseInt(stepNumStr, 10);
 
-    const teamId = bodyTyped.team?.id;
-    if (!teamId) {
-      await ack();
-      return;
-    }
+    const teamId =
+      bodyTyped.team?.id ??
+      (bodyTyped.user as { team_id?: string } | undefined)?.team_id;
+    if (!teamId) return;
 
     const slackUserId = bodyTyped.user.id;
     const channelId = bodyTyped.channel?.id;
@@ -360,14 +436,24 @@ app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
       slackUserId,
     );
     if (!minimal.ok) {
-      await ack();
+      if (channelId) {
+        await client.chat.postEphemeral({
+          channel: channelId,
+          user: slackUserId,
+          text: ":x: You don't have permission to complete this step, or this assignment is no longer active.",
+        }).catch(() => {});
+      }
       return;
     }
 
     if (minimal.proofType !== "none") {
-      // Same HTTP response as ack — avoids `views.open` + expired trigger_id on cold/slow runs.
-      await ack({
-        response_action: "push",
+      const triggerId = bodyTyped.trigger_id ?? (body as unknown as Record<string, unknown>).trigger_id;
+      if (!triggerId) {
+        console.error("[Slack complete_step] No trigger_id for evidence modal");
+        return;
+      }
+      await client.views.open({
+        trigger_id: triggerId as string,
         view: {
           type: "modal",
           callback_id: "evidence_submit",
@@ -391,11 +477,9 @@ app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
               "Add the proof requested for this step.",
           ),
         },
-      } as never);
+      });
       return;
     }
-
-    await ack();
 
     const result = await callCompletionsApi(
       minimal.assignmentId,
@@ -404,19 +488,25 @@ app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
       minimal.assigneeId,
       minimal.orgId,
     );
-    if (!result.ok) return;
+
+    if (!result.ok) {
+      if (channelId && result.error === "Already completed") {
+        await client.chat.postEphemeral({
+          channel: channelId,
+          user: slackUserId,
+          text: ":information_source: This step is already marked complete.",
+        }).catch(() => {});
+      }
+      return;
+    }
 
     const ctx = await fetchAssignmentContext(minimal.assignmentId);
     if (!ctx) return;
 
     ctx.completedSet.add(stepNumber);
-    const token = await getBotToken(ctx.assignment.org_id);
-    if (!token) return;
 
-    const sb = createAdminClient();
     if (messageTs && channelId) {
       await client.chat.update({
-        token,
         channel: channelId,
         ts: messageTs,
         blocks: buildAssignmentMessage(
@@ -425,8 +515,10 @@ app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
           ctx.employeeName,
           ctx.completedSet,
         ),
+        text: `Training plan update: ${ctx.assignmentData.planTitle}`,
       });
 
+      const sb = createAdminClient();
       await sb
         .from("notifications")
         .update({ slack_message_ts: messageTs })
@@ -447,11 +539,6 @@ app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
     });
   } catch (err) {
     console.error("[Slack complete_step]", err);
-    try {
-      await ack();
-    } catch {
-      /* already acknowledged */
-    }
   }
 });
 
@@ -460,8 +547,6 @@ app.action(/^complete_step_\d+$/, async ({ ack, action, body, client }) => {
 // ---------------------------------------------------------------------------
 
 app.view("evidence_submit", async ({ ack, view, client, body }) => {
-  await ack();
-
   let meta: {
     assignmentId: string;
     stepNumber: number;
@@ -473,12 +558,19 @@ app.view("evidence_submit", async ({ ack, view, client, body }) => {
   try {
     meta = JSON.parse(view.private_metadata ?? "{}") as typeof meta;
   } catch {
+    await ack();
     return;
   }
-  if (!meta.assignmentId || !meta.orgId || !meta.userId) return;
+  if (!meta.assignmentId || !meta.orgId || !meta.userId) {
+    await ack();
+    return;
+  }
 
   const slackActorId = (body as { user?: { id?: string } }).user?.id;
-  if (!slackActorId) return;
+  if (!slackActorId) {
+    await ack();
+    return;
+  }
 
   const evidenceText =
     view.state.values.evidence_text_block?.evidence_text?.value ?? undefined;
@@ -486,13 +578,22 @@ app.view("evidence_submit", async ({ ack, view, client, body }) => {
     view.state.values.evidence_url_block?.evidence_url?.value ?? undefined;
 
   const ctxPre = await fetchAssignmentContext(meta.assignmentId);
-  if (!ctxPre || ctxPre.assignment.org_id !== meta.orgId) return;
-  if (ctxPre.assignment.assigned_to !== meta.userId) return;
+  if (!ctxPre || ctxPre.assignment.org_id !== meta.orgId) {
+    await ack();
+    return;
+  }
+  if (ctxPre.assignment.assigned_to !== meta.userId) {
+    await ack();
+    return;
+  }
   const assigneeOk = await assigneeSlackMatchesActor(
     ctxPre.assignment.assigned_to,
     slackActorId,
   );
-  if (!assigneeOk) return;
+  if (!assigneeOk) {
+    await ack();
+    return;
+  }
 
   const result = await callCompletionsApi(
     meta.assignmentId,
@@ -501,26 +602,45 @@ app.view("evidence_submit", async ({ ack, view, client, body }) => {
     meta.userId,
     meta.orgId,
   );
-  if (!result.ok) return;
+
+  if (!result.ok) {
+    if (result.error === "Evidence does not satisfy proof requirements") {
+      await ack({
+        response_action: "errors",
+        errors: {
+          evidence_text_block: "Please provide the required proof for this step.",
+        },
+      } as never);
+      return;
+    }
+    await ack();
+    return;
+  }
+
+  await ack();
 
   const ctx = await fetchAssignmentContext(meta.assignmentId);
   if (!ctx) return;
 
   ctx.completedSet.add(meta.stepNumber);
-  const token = await getBotToken(meta.orgId);
-  if (!token || !meta.messageTs || !meta.channelId) return;
 
-  await client.chat.update({
-    token,
-    channel: meta.channelId,
-    ts: meta.messageTs,
-    blocks: buildAssignmentMessage(
-      ctx.assignmentData,
-      ctx.steps,
-      ctx.employeeName,
-      ctx.completedSet,
-    ),
-  });
+  if (meta.messageTs && meta.channelId) {
+    try {
+      await client.chat.update({
+        channel: meta.channelId,
+        ts: meta.messageTs,
+        blocks: buildAssignmentMessage(
+          ctx.assignmentData,
+          ctx.steps,
+          ctx.employeeName,
+          ctx.completedSet,
+        ),
+        text: `Training plan update: ${ctx.assignmentData.planTitle}`,
+      });
+    } catch (e) {
+      console.error("[Slack evidence_submit] chat.update failed", e);
+    }
+  }
 
   const { notifyAdminSlackChannelOnCompletion } = await import(
     "@/lib/notifications/notify-admin-slack"
@@ -756,3 +876,5 @@ app.event("app_home_opened", async ({ event, client, context }) => {
     },
   });
 });
+
+} // end registerListeners

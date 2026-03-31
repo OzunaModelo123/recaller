@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CreditCard, Building2 } from "lucide-react";
+import { CreditCard, Building2, Plug } from "lucide-react";
 
-import { parseOrgContext } from "@/lib/ai/orgContext";
+import { EMPTY_ORG_CONTEXT } from "@/lib/ai/orgContext";
 import { CompanyContextSettingsPanel } from "@/components/dashboard/company-context-forms";
-import { SlackIntegrationPanel } from "@/components/dashboard/slack-integration-panel";
+import { AdminIntegrationsGrid } from "@/components/dashboard/admin-integrations-grid";
+import { Button } from "@/components/ui/button";
+import { loadAdminIntegrationsForUser } from "@/lib/dashboard/load-admin-integrations";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { searchParams: Promise<{ slack?: string; reason?: string }> };
@@ -24,27 +27,10 @@ export default async function SettingsPage({ searchParams }: Props) {
 
   const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
 
-  const { data: org } =
-    profile?.org_id && isAdmin
-      ? await supabase
-          .from("organisations")
-          .select("org_context, slack_team_id, slack_admin_channel_id")
-          .eq("id", profile.org_id)
-          .maybeSingle()
-      : { data: null };
+  const integrationsData =
+    isAdmin && user ? await loadAdminIntegrationsForUser(supabase, user.id) : null;
 
-  const initial = parseOrgContext(org?.org_context);
-
-  const slackConnected = !!org?.slack_team_id;
-  let mappedUsers = 0;
-  if (slackConnected && profile?.org_id) {
-    const { count } = await supabase
-      .from("users")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", profile.org_id)
-      .not("slack_user_id", "is", null);
-    mappedUsers = count ?? 0;
-  }
+  const initial = integrationsData?.initialOrgContext ?? EMPTY_ORG_CONTEXT;
 
   return (
     <div className="space-y-8">
@@ -59,21 +45,24 @@ export default async function SettingsPage({ searchParams }: Props) {
 
       {isAdmin && <CompanyContextSettingsPanel initial={initial} />}
 
-      {isAdmin && (
+      {isAdmin && integrationsData ? (
         <div>
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Integrations</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <SlackIntegrationPanel
-              connected={slackConnected}
-              teamId={org?.slack_team_id ?? null}
-              mappedUsers={mappedUsers}
-              slackResult={params.slack ?? null}
-              slackReason={params.reason ?? null}
-              initialAdminChannelId={org?.slack_admin_channel_id ?? null}
-            />
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-foreground">Integrations</h2>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/integrations">
+                <Plug className="mr-2 h-4 w-4" />
+                Open integrations hub
+              </Link>
+            </Button>
           </div>
+          <AdminIntegrationsGrid
+            data={integrationsData}
+            slackResult={params.slack ?? null}
+            slackReason={params.reason ?? null}
+          />
         </div>
-      )}
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[

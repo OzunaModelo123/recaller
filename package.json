@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:fresh": "bash scripts/dev-fresh.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

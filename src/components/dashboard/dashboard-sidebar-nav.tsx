@@ -8,6 +8,7 @@ import {
   FileVideo,
   LayoutDashboard,
   ListChecks,
+  Plug,
   Settings,
   Users,
 } from "lucide-react";
@@ -27,6 +28,7 @@ const navItems = [
   },
   { href: "/dashboard/team", label: "Team", icon: Users, adminOnly: true },
   { href: "/dashboard/insights", label: "Insights", icon: BarChart3, adminOnly: true },
+  { href: "/dashboard/integrations", label: "Integrations", icon: Plug, adminOnly: true },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, adminOnly: true },
 ] as const;
 

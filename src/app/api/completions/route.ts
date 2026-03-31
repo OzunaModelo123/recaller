@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { notifyAdminSlackChannelOnCompletion } from "@/lib/notifications/notify-admin-slack";
+import { refreshSlackAssignmentDmAfterWebCompletion } from "@/lib/notifications/notify-employee-slack-assignment";
 
 export const runtime = "nodejs";
 
@@ -171,6 +172,18 @@ export async function POST(request: Request) {
     stepNumber,
     platform,
   });
+
+  if (platform === "web") {
+    try {
+      await refreshSlackAssignmentDmAfterWebCompletion({
+        orgId: assignment.org_id,
+        assignmentId,
+        assigneeUserId: user.id,
+      });
+    } catch (e) {
+      console.error("[completions] Slack DM refresh failed", e);
+    }
+  }
 
   return NextResponse.json({
     ok: true,

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, Check, X, ExternalLink, Loader2 } from "lucide-react";
+import {
+  MessageSquare,
+  Check,
+  X,
+  ExternalLink,
+  Loader2,
+  ClipboardCopy,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +21,44 @@ type Props = {
   slackResult: string | null;
   slackReason: string | null;
   initialAdminChannelId: string | null;
+  /** Same URL for Event Subscriptions and Interactivity (from server env). */
+  slackEventsUrl: string;
+  slackOAuthRedirectUrl: string;
+  publicAppOrigin: string;
 };
+
+function CopyUrlField({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-foreground">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        <Input readOnly className="min-w-0 flex-1 font-mono text-xs" value={url || "—"} />
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="shrink-0"
+          onClick={copy}
+          disabled={!url}
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5" />
+          ) : (
+            <ClipboardCopy className="h-3.5 w-3.5" />
+          )}
+          <span className="ml-1.5">{copied ? "Copied" : "Copy"}</span>
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function SlackIntegrationPanel({
   connected,
@@ -23,6 +67,9 @@ export function SlackIntegrationPanel({
   slackResult,
   slackReason,
   initialAdminChannelId,
+  slackEventsUrl,
+  slackOAuthRedirectUrl,
+  publicAppOrigin,
 }: Props) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [isDisconnected, setIsDisconnected] = useState(false);
@@ -106,6 +153,93 @@ export function SlackIntegrationPanel({
           Slack connection failed{slackReason ? `: ${slackReason}` : ""}. Please try again.
         </div>
       )}
+
+      <div className="mt-4 space-y-3 rounded-lg border border-amber-200/80 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+        <h4 className="text-sm font-semibold text-foreground">
+          Slack app URLs (paste into api.slack.com)
+        </h4>
+        <div className="rounded-md border border-border bg-background/60 p-3 text-xs leading-relaxed text-foreground">
+          <p className="font-medium">Localhost vs Vercel — why you might see two different links</p>
+          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-muted-foreground">
+            <li>
+              <span className="font-medium text-foreground">On your computer</span> (when you run
+              the app locally): the address often looks like{" "}
+              <span className="font-mono text-[11px] text-foreground">http://localhost:3000</span>.
+              Only you can open that.{" "}
+              <span className="font-medium text-foreground">Slack cannot reach it.</span>
+            </li>
+            <li>
+              <span className="font-medium text-foreground">On the internet (Vercel)</span>: your
+              real site uses an address starting with{" "}
+              <span className="font-mono text-[11px] text-foreground">https://</span>
+              {publicAppOrigin ? (
+                <>
+                  {" "}
+                  (here:{" "}
+                  <span className="break-all font-mono text-[11px] text-foreground">
+                    {publicAppOrigin}
+                  </span>
+                  ).
+                </>
+              ) : (
+                <> (your team sets this in Vercel).</>
+              )}{" "}
+              Slack talks to this one.
+            </li>
+            <li>
+              For <span className="font-medium text-foreground">logging in and testing with Slack</span>,
+              use your <span className="font-medium text-foreground">Vercel link</span> in the browser.
+              The URLs below are for Slack’s website — always use the ones shown here (they match
+              where this app is running right now).
+            </li>
+          </ul>
+        </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Open{" "}
+          <a
+            href="https://api.slack.com/apps"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary underline underline-offset-2"
+          >
+            api.slack.com/apps
+          </a>
+          , choose your Recaller app, then:
+        </p>
+        <ol className="list-decimal space-y-2 pl-4 text-xs text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">Event Subscriptions</span> — turn On,
+            paste the Events URL below, wait for the green verified checkmark.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">Interactivity &amp; Shortcuts</span> —
+            turn On, paste the <em>same</em> URL in Request URL (required for &quot;Mark step
+            complete&quot; buttons).
+          </li>
+          <li>
+            <span className="font-medium text-foreground">OAuth &amp; Permissions</span> — under
+            Redirect URLs, add the OAuth redirect below (and keep your existing entries).
+          </li>
+        </ol>
+        {!publicAppOrigin ? (
+          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            Set <code className="rounded bg-background/60 px-1">NEXT_PUBLIC_APP_URL</code> in Vercel
+            (or <code className="rounded bg-background/60 px-1">.env.local</code>) to your live
+            site, e.g. <code className="rounded bg-background/60 px-1">https://your-app.vercel.app</code>
+            , then redeploy. Without it, Slack cannot call your server.
+          </p>
+        ) : null}
+        <CopyUrlField
+          label="Events + Interactivity request URL (same for both)"
+          url={slackEventsUrl}
+        />
+        <CopyUrlField label="OAuth redirect URL" url={slackOAuthRedirectUrl} />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          If Slack shows &quot;Sending messages to this app has been turned off&quot;, a workspace
+          admin must re-enable the app under Slack → Settings &amp; administration → Manage apps →
+          Recaller → allow messaging.
+        </p>
+      </div>
 
       {isConnected ? (
         <div className="mt-4 space-y-4">

@@ -22,7 +22,7 @@ export function isProofType(s: string): s is ProofType {
 
 export function normalizeProofType(raw: unknown): ProofType {
   if (typeof raw === "string" && isProofType(raw)) return raw;
-  return "text";
+  return "none";
 }
 
 /** Default proof fields when loading legacy plans or AI output without them. */
