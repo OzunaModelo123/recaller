@@ -3,6 +3,7 @@ import {
   getPublicAppOrigin,
   slackEventsRequestUrl,
   slackOAuthRedirectUrl,
+  teamsOAuthStartUrl,
 } from "@/lib/public-app-url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -19,7 +20,8 @@ export type AdminIntegrationsLoad = {
   teamsConnected: boolean;
   teamsTenantId: string | null;
   teamsMappedUsers: number;
-  /** True when all TEAMS_* env vars are set (required before Connect Teams works). */
+  teamsOAuthUrl: string;
+  /** True when TEAMS_APP_ID + TEAMS_TENANT_ID are set (required before Connect Teams works). */
   teamsEnvConfigured: boolean;
 };
 
@@ -79,10 +81,9 @@ export async function loadAdminIntegrationsForUser(
     teamsConnected,
     teamsTenantId: org?.teams_tenant_id ?? null,
     teamsMappedUsers,
+    teamsOAuthUrl: teamsOAuthStartUrl(),
     teamsEnvConfigured: Boolean(
-      process.env.TEAMS_APP_ID?.trim() &&
-      process.env.TEAMS_TENANT_ID?.trim() &&
-      process.env.TEAMS_APP_PASSWORD?.trim(),
+      process.env.TEAMS_APP_ID?.trim() && process.env.TEAMS_TENANT_ID?.trim(),
     ),
   };
 }

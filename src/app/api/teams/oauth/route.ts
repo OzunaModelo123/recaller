@@ -8,6 +8,10 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicAppOrigin } from "@/lib/public-app-url";
+import {
+  reconstructExtEmail,
+  listAllTenantUsers,
+} from "@/lib/teams/graphClient";
 
 export const runtime = "nodejs";
 
@@ -181,41 +185,42 @@ export async function GET(request: Request) {
   }
 }
 
-async function mapTeamsUsersToRecaller(
+export async function mapTeamsUsersToRecaller(
   graphToken: string,
   orgId: string,
-) {
+): Promise<{ mapped: number }> {
   const sb = createAdminClient();
+  const tenantUsers = await listAllTenantUsers(graphToken);
+  let mapped = 0;
 
-  let nextLink: string | null =
-    "https://graph.microsoft.com/v1.0/users?$select=id,mail,userPrincipalName&$top=100";
+  for (const member of tenantUsers) {
+    const rawEmail = (member.mail ?? member.userPrincipalName ?? "").toLowerCase().trim();
+    if (!rawEmail) continue;
 
-  while (nextLink) {
-    const res = await fetch(nextLink, {
-      headers: { Authorization: `Bearer ${graphToken}` },
-    });
+    const emailsToTry = new Set<string>([rawEmail]);
 
-    if (!res.ok) {
-      console.error("[Teams OAuth] Graph users.list failed", await res.text());
-      break;
-    }
+    // Guest accounts come back as user_domain.com#EXT#@tenant.onmicrosoft.com
+    const reconstructed = reconstructExtEmail(rawEmail);
+    if (reconstructed) emailsToTry.add(reconstructed.toLowerCase());
 
-    const data = (await res.json()) as {
-      value: { id: string; mail?: string; userPrincipalName?: string }[];
-      "@odata.nextLink"?: string;
-    };
-
-    for (const member of data.value) {
-      const email = (member.mail ?? member.userPrincipalName ?? "").toLowerCase().trim();
-      if (!email) continue;
-
-      await sb
+    for (const email of emailsToTry) {
+      const { count } = await sb
         .from("users")
-        .update({ teams_user_id: member.id })
+        .select("id", { count: "exact", head: true })
         .eq("org_id", orgId)
         .ilike("email", email);
-    }
 
-    nextLink = data["@odata.nextLink"] ?? null;
+      if ((count ?? 0) > 0) {
+        await sb
+          .from("users")
+          .update({ teams_user_id: member.id })
+          .eq("org_id", orgId)
+          .ilike("email", email);
+        mapped++;
+        break;
+      }
+    }
   }
+
+  return { mapped };
 }

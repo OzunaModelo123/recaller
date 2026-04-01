@@ -16,6 +16,7 @@ import {
   type StepData,
   type AssignmentData,
 } from "@/lib/teams/adaptiveCards";
+import { getAadUserEmail, reconstructExtEmail } from "@/lib/teams/graphClient";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -58,6 +59,13 @@ export async function POST(request: Request) {
     activity.conversation?.tenantId ??
     activity.channelData?.tenant?.id;
 
+  // Auto-link the user on any interaction if they are not yet linked.
+  if (activity.from?.id && activity.from.id !== activity.recipient?.id) {
+    await tryAutoLinkUser(activity.from.aadObjectId ?? activity.from.id, tenantId).catch(
+      (e) => console.warn("[Teams] auto-link failed", e),
+    );
+  }
+
   switch (activity.type) {
     case "message":
       return handleMessage(activity);
@@ -74,6 +82,66 @@ export async function POST(request: Request) {
 
     default:
       return new Response(null, { status: 200 });
+  }
+}
+
+/**
+ * Attempts to link a Teams user (by their AAD Object ID) to a Recaller user
+ * by looking up their email via Microsoft Graph. Runs silently — never throws.
+ */
+async function tryAutoLinkUser(
+  aadObjectId: string,
+  tenantId: string | undefined,
+) {
+  if (!aadObjectId || !tenantId) return;
+
+  const sb = createAdminClient();
+
+  // Already linked — nothing to do.
+  const { data: existing } = await sb
+    .from("users")
+    .select("id")
+    .eq("teams_user_id", aadObjectId)
+    .maybeSingle();
+  if (existing) return;
+
+  // Find the org for this tenant.
+  const { data: org } = await sb
+    .from("organisations")
+    .select("id")
+    .eq("teams_tenant_id", tenantId)
+    .maybeSingle();
+  if (!org) return;
+
+  // Fetch the AAD profile email via Graph.
+  const profile = await getAadUserEmail(aadObjectId);
+  if (!profile) return;
+
+  const emailsToTry = new Set<string>();
+  for (const raw of [profile.mail, profile.userPrincipalName]) {
+    if (!raw) continue;
+    const lower = raw.toLowerCase().trim();
+    emailsToTry.add(lower);
+    const reconstructed = reconstructExtEmail(lower);
+    if (reconstructed) emailsToTry.add(reconstructed);
+  }
+
+  for (const email of emailsToTry) {
+    const { count } = await sb
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .ilike("email", email);
+
+    if ((count ?? 0) > 0) {
+      await sb
+        .from("users")
+        .update({ teams_user_id: aadObjectId })
+        .eq("org_id", org.id)
+        .ilike("email", email);
+      console.log(`[Teams] Auto-linked ${email} → teams_user_id=${aadObjectId}`);
+      return;
+    }
   }
 }
 

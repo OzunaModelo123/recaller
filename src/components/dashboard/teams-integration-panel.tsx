@@ -5,8 +5,8 @@ import {
   MessageSquareMore,
   Check,
   X,
+  ExternalLink,
   Loader2,
-  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ type Props = {
   connected: boolean;
   tenantId: string | null;
   mappedUsers: number;
+  teamsResult: string | null;
+  teamsReason: string | null;
+  teamsOAuthUrl: string;
   publicAppOrigin: string;
   teamsEnvConfigured: boolean;
 };
@@ -23,36 +26,34 @@ export function TeamsIntegrationPanel({
   connected,
   tenantId,
   mappedUsers,
+  teamsResult,
+  teamsReason,
+  teamsOAuthUrl,
   publicAppOrigin,
   teamsEnvConfigured,
 }: Props) {
-  const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [isDisconnected, setIsDisconnected] = useState(false);
-  const [justConnected, setJustConnected] = useState(false);
-  const [newMappedCount, setNewMappedCount] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ mapped: number } | { error: string } | null>(null);
 
-  const isConnected = (connected || justConnected) && !isDisconnected;
+  const isConnected = connected && !isDisconnected;
 
-  async function handleConnect() {
-    setConnecting(true);
-    setError(null);
+  async function handleSyncUsers() {
+    setSyncing(true);
+    setSyncResult(null);
     try {
-      const res = await fetch("/api/teams/connect", { method: "POST" });
-      const body = await res.json();
-
-      if (!res.ok) {
-        setError(body.message || body.error || "Connection failed");
-        return;
+      const res = await fetch("/api/teams/resync", { method: "POST" });
+      const json = (await res.json()) as { ok?: boolean; mapped?: number; error?: string };
+      if (res.ok && json.ok) {
+        setSyncResult({ mapped: json.mapped ?? 0 });
+      } else {
+        setSyncResult({ error: json.error ?? "Sync failed." });
       }
-
-      setJustConnected(true);
-      setNewMappedCount(body.mappedUsers ?? 0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Connection failed");
+    } catch {
+      setSyncResult({ error: "Network error during sync." });
     } finally {
-      setConnecting(false);
+      setSyncing(false);
     }
   }
 
@@ -66,17 +67,11 @@ export function TeamsIntegrationPanel({
     setDisconnecting(true);
     try {
       const res = await fetch("/api/teams/disconnect", { method: "POST" });
-      if (res.ok) {
-        setIsDisconnected(true);
-        setJustConnected(false);
-        setNewMappedCount(null);
-      }
+      if (res.ok) setIsDisconnected(true);
     } finally {
       setDisconnecting(false);
     }
   }
-
-  const displayMappedUsers = newMappedCount ?? mappedUsers;
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
@@ -103,31 +98,85 @@ export function TeamsIntegrationPanel({
         )}
       </div>
 
-      {justConnected && !isDisconnected && (
+      {teamsResult === "success" && (
         <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400">
           <Check className="mr-1.5 inline h-4 w-4" />
-          Microsoft Teams connected successfully!{" "}
-          {displayMappedUsers > 0
-            ? `${displayMappedUsers} user${displayMappedUsers !== 1 ? "s" : ""} matched by email.`
-            : "No users matched by email yet — employees will be matched when they're added to your org."}
+          Microsoft Teams connected successfully! Users matched by email.
         </div>
       )}
 
-      {error && (
+      {teamsResult === "error" && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
           <X className="mr-1.5 inline h-4 w-4" />
-          {error}
+          {teamsReason === "missing_teams_env" ? (
+            <>
+              <span className="font-medium">Teams isn’t configured on the server yet.</span> In the
+              Vercel project → Settings → Environment Variables (Production), add{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code>,{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code>, and{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>{" "}
+              (Azure Bot App ID, Directory tenant ID, and client secret). Set{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">NEXT_PUBLIC_APP_URL</code>{" "}
+              to your live URL (e.g. https://recaller-seven.vercel.app), then redeploy.
+            </>
+          ) : teamsReason === "missing_app_url" ? (
+            <>
+              <span className="font-medium">App URL is not set.</span> Set{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">NEXT_PUBLIC_APP_URL</code>{" "}
+              in Vercel to your production origin so OAuth redirects work, then redeploy.
+            </>
+          ) : teamsReason === "invalid_client" ||
+            teamsReason === "invalid_client_token" ||
+            teamsReason?.startsWith("invalid_client:") ? (
+            <>
+              <span className="font-medium">Azure rejected the app (invalid client).</span> Usually
+              this means the <strong>Application (client) ID</strong>,{" "}
+              <strong>client secret</strong>, or <strong>redirect URI</strong> does not match what
+              is configured in Microsoft Entra ID. Checklist: (1) In{" "}
+              <strong>Entra ID → App registrations</strong>, open the app whose{" "}
+              <em>Application (client) ID</em> equals your{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code>. (2)
+              Under <strong>Certificates &amp; secrets</strong>, create a <em>new</em> client secret
+              and set <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>{" "}
+              to that value in Vercel (secrets expire). (3) Under{" "}
+              <strong>Authentication → Redirect URIs</strong>, add exactly:{" "}
+              <code className="mt-1 block break-all rounded bg-background/60 px-1 py-1 text-[11px]">
+                {publicAppOrigin}/api/teams/oauth
+              </code>{" "}
+              (Web platform). (4) <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code>{" "}
+              must be the <em>Directory (tenant) ID</em> of the same tenant where that app is
+              registered. Then redeploy.
+              {teamsReason?.startsWith("invalid_client:") ? (
+                <span className="mt-2 block text-xs opacity-90">
+                  Detail:{" "}
+                  {(() => {
+                    try {
+                      return decodeURIComponent(teamsReason.slice("invalid_client:".length));
+                    } catch {
+                      return teamsReason.slice("invalid_client:".length);
+                    }
+                  })()}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <>
+              Teams connection failed
+              {teamsReason && teamsReason !== "forbidden" ? `: ${teamsReason}` : teamsReason === "forbidden" ? ": admin only" : ""}
+              . Please try again.
+            </>
+          )}
         </div>
       )}
 
       {!isConnected && !teamsEnvConfigured && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
-          <AlertTriangle className="mr-1.5 inline h-4 w-4" />
           <span className="font-medium">Connect Teams is disabled</span> until{" "}
-          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code>,{" "}
-          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>, and{" "}
+          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code> and{" "}
           <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code> are set
-          on the server (Vercel → Settings → Environment Variables → Production), then redeploy.
+          on the server (Vercel → Environment Variables → Production). Also add{" "}
+          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code> for
+          the bot token flow and redeploy.
         </div>
       )}
 
@@ -139,13 +188,7 @@ export function TeamsIntegrationPanel({
           <ol className="list-decimal space-y-2 pl-4 text-xs text-muted-foreground">
             <li>
               <span className="font-medium text-foreground">Create an Azure Bot</span> in the Azure
-              Portal (search for &quot;Azure Bot&quot;). Choose &quot;Single Tenant&quot; and &quot;Create new Microsoft App ID.&quot;
-            </li>
-            <li>
-              In <span className="font-medium text-foreground">App registrations</span> → your app →{" "}
-              <span className="font-medium text-foreground">API permissions</span>, add{" "}
-              <code className="rounded bg-background/60 px-1 text-[11px]">Microsoft Graph → Application → User.Read.All</code>{" "}
-              and click <span className="font-medium text-foreground">&quot;Grant admin consent&quot;</span>.
+              Portal (search for "Azure Bot"). Choose "Single Tenant" and "Create new Microsoft App ID."
             </li>
             <li>
               Set the <span className="font-medium text-foreground">Messaging endpoint</span> to:{" "}
@@ -158,12 +201,9 @@ export function TeamsIntegrationPanel({
             <li>
               Copy your <span className="font-medium text-foreground">App ID</span> and create a{" "}
               <span className="font-medium text-foreground">Client Secret</span> under Certificates
-              &amp; Secrets. Set them as{" "}
+              &amp; Secrets. Save both in your env as{" "}
               <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code> and{" "}
-              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>{" "}
-              in Vercel env vars. Also set{" "}
-              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code>{" "}
-              (from Entra ID → Overview → Directory (tenant) ID).
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>.
             </li>
             <li>
               Enable the <span className="font-medium text-foreground">Microsoft Teams channel</span>{" "}
@@ -177,26 +217,51 @@ export function TeamsIntegrationPanel({
         <div className="mt-4 space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Tenant ID:</span>
-            <span className="font-mono text-xs">{tenantId ?? process.env.TEAMS_TENANT_ID}</span>
+            <span className="font-mono text-xs">{tenantId}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Users with Teams ID mapped:</span>
-            {displayMappedUsers}
+            {syncResult && "mapped" in syncResult
+              ? syncResult.mapped
+              : mappedUsers}
           </div>
 
-          <div className="flex gap-2">
+          {syncResult && "mapped" in syncResult && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-2.5 text-sm text-green-800 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400">
+              <Check className="mr-1.5 inline h-4 w-4" />
+              Synced — {syncResult.mapped} user{syncResult.mapped !== 1 ? "s" : ""} matched.{" "}
+              {syncResult.mapped === 0
+                ? "No matching emails found. Employees with matching emails will be auto-linked when they message the bot."
+                : "Employees can now receive Teams notifications."}
+            </div>
+          )}
+
+          {syncResult && "error" in syncResult && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-800 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+              <X className="mr-1.5 inline h-4 w-4" />
+              {syncResult.error}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={handleConnect}
-              disabled={connecting}
+              onClick={handleSyncUsers}
+              disabled={syncing}
             >
-              {connecting ? (
+              {syncing ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <MessageSquareMore className="mr-1.5 h-3.5 w-3.5" />
+                <Check className="mr-1.5 h-3.5 w-3.5" />
               )}
-              Re-sync users
+              Sync Users
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={teamsOAuthUrl}>
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                Re-authorize
+              </a>
             </Button>
             <Button
               variant="outline"
@@ -216,19 +281,19 @@ export function TeamsIntegrationPanel({
         </div>
       ) : (
         <div className="mt-4">
-          {teamsEnvConfigured ? (
-            <Button
-              size="sm"
-              onClick={handleConnect}
-              disabled={connecting}
-            >
-              {connecting ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
+          {teamsOAuthUrl && teamsEnvConfigured ? (
+            <Button size="sm" asChild>
+              <a href={teamsOAuthUrl}>
                 <MessageSquareMore className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              Connect Teams
+                Connect Teams
+              </a>
             </Button>
+          ) : !teamsOAuthUrl ? (
+            <p className="text-xs text-muted-foreground">
+              Set <code className="rounded bg-background/60 px-1">NEXT_PUBLIC_APP_URL</code> (or deploy
+              on Vercel so <code className="rounded bg-background/60 px-1">VERCEL_URL</code> is
+              available) so OAuth links can be built.
+            </p>
           ) : null}
         </div>
       )}
