@@ -13,6 +13,13 @@ const OPENAI_TRANSCRIPTION_MAX_BYTES = 24 * 1024 * 1024;
 const COMPRESSED_AUDIO_BITRATE = "64k";
 const COMPRESSED_AUDIO_SAMPLE_RATE = "16000";
 
+type UploadedMediaAsset = {
+  path: string;
+  bytes?: number;
+  contentType?: string;
+  kind?: string;
+};
+
 function guessMimeAndName(filePath: string): { basename: string; mime: string } {
   const basename = filePath.split("/").pop() || "media.bin";
   const lower = basename.toLowerCase();
@@ -161,6 +168,55 @@ async function transcribeChunk(openai: OpenAI, chunkPath: string, index: number)
   return transcription.text?.trim() ?? "";
 }
 
+async function transcribeAudioBuffer(
+  openai: OpenAI,
+  buffer: Buffer,
+  fileName: string,
+  contentType: string,
+): Promise<string> {
+  const file = await toFile(buffer, fileName, { type: contentType });
+  const transcription = await openai.audio.transcriptions.create({
+    file,
+    model: "whisper-1",
+  });
+
+  return transcription.text?.trim() ?? "";
+}
+
+function readUploadedAssets(metadata: unknown): UploadedMediaAsset[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return [];
+  }
+
+  const rawAssets = (metadata as { uploaded_assets?: unknown }).uploaded_assets;
+  if (!Array.isArray(rawAssets)) {
+    return [];
+  }
+
+  return rawAssets
+    .map((asset) => {
+      if (!asset || typeof asset !== "object" || Array.isArray(asset)) {
+        return null;
+      }
+
+      const value = asset as UploadedMediaAsset;
+      return typeof value.path === "string" && value.path.trim() ? value : null;
+    })
+    .filter((asset): asset is UploadedMediaAsset => Boolean(asset));
+}
+
+async function purgeUploadedAssets(admin: ReturnType<typeof createAdminClient>, paths: string[]) {
+  const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+  if (uniquePaths.length === 0) {
+    return;
+  }
+
+  const { error: removeError } = await admin.storage.from("content-files").remove(uniquePaths);
+  if (removeError) {
+    throw new Error(removeError.message);
+  }
+}
+
 async function transcribeMediaBuffer(
   openai: OpenAI,
   buffer: Buffer,
@@ -237,10 +293,58 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
       throw new Error(downloadError?.message ?? "Storage download failed");
     }
 
-    const buffer = Buffer.from(await blob.arrayBuffer());
-    const { basename } = guessMimeAndName(item.file_path);
     const openai = new OpenAI({ apiKey });
-    const { text, chunkCount } = await transcribeMediaBuffer(openai, buffer, basename);
+    const uploadedAssets = readUploadedAssets(item.metadata);
+
+    let text = "";
+    let chunkCount = 0;
+
+    if (uploadedAssets.some((asset) => asset.kind === "transcript_audio_segment")) {
+      const transcriptParts: string[] = [];
+
+      for (const [index, asset] of uploadedAssets.entries()) {
+        const { data: assetBlob, error: assetError } = await admin.storage
+          .from("content-files")
+          .download(asset.path);
+
+        if (assetError || !assetBlob) {
+          throw new Error(assetError?.message ?? `Storage download failed for ${asset.path}`);
+        }
+
+        const assetBuffer = Buffer.from(await assetBlob.arrayBuffer());
+        const assetText =
+          assetBuffer.byteLength <= OPENAI_TRANSCRIPTION_MAX_BYTES
+            ? await transcribeAudioBuffer(
+                openai,
+                assetBuffer,
+                `segment-${String(index + 1).padStart(3, "0")}.mp3`,
+                asset.contentType || "audio/mpeg",
+              )
+            : (
+                await transcribeMediaBuffer(
+                  openai,
+                  assetBuffer,
+                  asset.path.split("/").pop() || `segment-${index + 1}.mp3`,
+                )
+              ).text;
+
+        if (assetText) {
+          transcriptParts.push(assetText);
+        }
+      }
+
+      text = transcriptParts.join("\n\n").trim();
+      chunkCount = uploadedAssets.length;
+      if (!text) {
+        throw new Error("Whisper returned empty text");
+      }
+    } else {
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      const { basename } = guessMimeAndName(item.file_path);
+      const result = await transcribeMediaBuffer(openai, buffer, basename);
+      text = result.text;
+      chunkCount = result.chunkCount;
+    }
 
     const { error: updateError } = await admin
       .from("content_items")
@@ -254,7 +358,21 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
       throw new Error(updateError.message);
     }
 
-    await purgeContentSourceFile(admin, contentItemId, { throwOnStorageError: true });
+    if (uploadedAssets.length > 0) {
+      await purgeUploadedAssets(
+        admin,
+        uploadedAssets.map((asset) => asset.path),
+      );
+      const { error: clearPathError } = await admin
+        .from("content_items")
+        .update({ file_path: null })
+        .eq("id", contentItemId);
+      if (clearPathError) {
+        throw new Error(clearPathError.message);
+      }
+    } else {
+      await purgeContentSourceFile(admin, contentItemId, { throwOnStorageError: true });
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await admin

@@ -83,8 +83,39 @@ export async function ingestContentUrl(url: string): Promise<IngestResult> {
 }
 
 export type PrepareUploadResult =
-  | { ok: true; contentItemId: string; storagePath: string }
+  | { ok: true; contentItemId: string; storagePath: string; storagePrefix: string }
   | { ok: false; error: string };
+
+export type UploadedContentAsset = {
+  path: string;
+  bytes: number;
+  contentType: string;
+  kind: "source_file" | "transcript_audio_segment";
+};
+
+function readUploadedAssetPaths(
+  metadata: unknown,
+): string[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return [];
+  }
+
+  const assets = (metadata as { uploaded_assets?: unknown }).uploaded_assets;
+  if (!Array.isArray(assets)) {
+    return [];
+  }
+
+  return assets
+    .map((asset) => {
+      if (!asset || typeof asset !== "object" || Array.isArray(asset)) {
+        return null;
+      }
+
+      const path = (asset as { path?: unknown }).path;
+      return typeof path === "string" && path.trim() ? path : null;
+    })
+    .filter((path): path is string => Boolean(path));
+}
 
 /**
  * Creates the content_items row and returns the storage path. The browser uploads the file
@@ -153,8 +184,9 @@ export async function prepareContentFileUpload(
     }
 
     const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
-    const storagePath = `${orgId}/${row.id}/${safeName}`;
-    return { ok: true, contentItemId: row.id, storagePath };
+    const storagePrefix = `${orgId}/${row.id}`;
+    const storagePath = `${storagePrefix}/${safeName}`;
+    return { ok: true, contentItemId: row.id, storagePath, storagePrefix };
   } catch (error) {
     console.error("[content] prepare upload crashed", {
       fileName,
@@ -166,7 +198,10 @@ export async function prepareContentFileUpload(
   }
 }
 
-export async function abortContentFileUpload(contentItemId: string): Promise<{ ok: boolean }> {
+export async function abortContentFileUpload(
+  contentItemId: string,
+  uploadedPaths: string[] = [],
+): Promise<{ ok: boolean }> {
   try {
     const ctx = await requireAdminOrg();
     if (!ctx.ok) {
@@ -188,7 +223,11 @@ export async function abortContentFileUpload(contentItemId: string): Promise<{ o
       (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
     const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
     const storagePath = `${orgId}/${contentItemId}/${safeName}`;
-    await supabase.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+    const storedPaths = readUploadedAssetPaths(row.metadata);
+    await supabase.storage
+      .from(CONTENT_FILES_BUCKET)
+      .remove(Array.from(new Set([storagePath, ...storedPaths, ...uploadedPaths])))
+      .catch(() => undefined);
     await supabase.from("content_items").delete().eq("id", contentItemId);
     return { ok: true };
   } catch (error) {
@@ -225,7 +264,13 @@ export async function deleteContentItem(
     const originalName =
       (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
     const safeName = originalName.replace(/[^\w.\-()+ ]/g, "_");
-    const storagePath = row.file_path ?? `${orgId}/${contentItemId}/${safeName}`;
+    const uploadedAssetPaths = readUploadedAssetPaths(row.metadata);
+    const storagePaths = Array.from(
+      new Set([
+        row.file_path ?? `${orgId}/${contentItemId}/${safeName}`,
+        ...uploadedAssetPaths,
+      ]),
+    );
 
     const { data: plans, error: plansErr } = await admin
       .from("plans")
@@ -309,7 +354,7 @@ export async function deleteContentItem(
 
     await admin.storage
       .from(CONTENT_FILES_BUCKET)
-      .remove([storagePath])
+      .remove(storagePaths)
       .catch(() => undefined);
 
     const { error: deleteErr } = await admin
@@ -341,7 +386,10 @@ export async function deleteContentItem(
   }
 }
 
-export async function finalizeContentFileUpload(contentItemId: string): Promise<IngestResult> {
+export async function finalizeContentFileUpload(
+  contentItemId: string,
+  uploadedAssets: UploadedContentAsset[] = [],
+): Promise<IngestResult> {
   try {
     const ctx = await requireAdminOrg();
     if (!ctx.ok) {
@@ -362,25 +410,25 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
     const name =
       (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
     const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
-    const storagePath = `${orgId}/${contentItemId}/${safeName}`;
+    const storagePath = uploadedAssets[0]?.path ?? `${orgId}/${contentItemId}/${safeName}`;
 
-    const { data: blob, error: dlErr } = await supabase.storage
-      .from(CONTENT_FILES_BUCKET)
-      .download(storagePath);
-    if (dlErr || !blob) {
-      console.error("[content] storage download failed", {
-        contentItemId,
-        storagePath,
-        error: dlErr?.message,
-      });
-      return { ok: false, error: dlErr?.message ?? "Uploaded file not found in storage." };
-    }
-
-    const buffer = Buffer.from(await blob.arrayBuffer());
     const sourceType = row.source_type;
 
     if (sourceType === "pdf" || sourceType === "docx") {
       try {
+        const { data: blob, error: dlErr } = await supabase.storage
+          .from(CONTENT_FILES_BUCKET)
+          .download(storagePath);
+        if (dlErr || !blob) {
+          console.error("[content] storage download failed", {
+            contentItemId,
+            storagePath,
+            error: dlErr?.message,
+          });
+          return { ok: false, error: dlErr?.message ?? "Uploaded file not found in storage." };
+        }
+
+        const buffer = Buffer.from(await blob.arrayBuffer());
         const extracted = await extractTranscriptFromFile(sourceType, buffer);
         const transcript = extracted.mode === "instant" ? extracted.transcript : null;
         if (!transcript) {
@@ -409,9 +457,21 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
     }
 
     if (sourceType === "mp4" || sourceType === "mp3") {
+      const normalizedMetadata =
+        row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+          ? (row.metadata as Record<string, unknown>)
+          : {};
+      const nextMetadata =
+        uploadedAssets.length > 0
+          ? {
+              ...normalizedMetadata,
+              uploaded_assets: uploadedAssets,
+            }
+          : normalizedMetadata;
+
       const { error: upRowErr } = await supabase
         .from("content_items")
-        .update({ file_path: storagePath })
+        .update({ file_path: storagePath, metadata: nextMetadata })
         .eq("id", contentItemId);
 
       if (upRowErr) {
@@ -420,7 +480,10 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
           storagePath,
           error: upRowErr.message,
         });
-        await supabase.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+        await supabase.storage
+          .from(CONTENT_FILES_BUCKET)
+          .remove(uploadedAssets.length > 0 ? uploadedAssets.map((asset) => asset.path) : [storagePath])
+          .catch(() => undefined);
         await supabase.from("content_items").delete().eq("id", contentItemId);
         return { ok: false, error: upRowErr.message };
       }

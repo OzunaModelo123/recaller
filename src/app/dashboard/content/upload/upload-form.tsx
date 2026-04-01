@@ -15,6 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  optimizeMediaForTranscript,
+  shouldOptimizeMediaForTranscript,
+} from "@/lib/content/clientMediaOptimizer";
 
 const STATUS_ORDER = ["queued", "transcribing", "analyzing", "ready"] as const;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
@@ -44,6 +48,7 @@ export function ContentUploadForm() {
   const [trackingId, setTrackingId] = useState<string | null>(null);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [lastSuccessId, setLastSuccessId] = useState<string | null>(null);
+  const [fileStatus, setFileStatus] = useState<string | null>(null);
   const [isPendingUrl, startUrl] = useTransition();
   const [isPendingFile, startFile] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +105,7 @@ export function ContentUploadForm() {
 
   const handleFile = useCallback((file: File) => {
     setFileError(null);
+    setFileStatus(null);
     setLastSuccessId(null);
     startFile(async () => {
       const prep = await prepareContentFileUpload(file.name, file.size);
@@ -109,63 +115,129 @@ export function ContentUploadForm() {
       }
 
       const supabase = createClient();
+      const uploadedAssets: Array<{
+        path: string;
+        bytes: number;
+        contentType: string;
+        kind: "source_file" | "transcript_audio_segment";
+      }> = [];
       let upErr: { message: string } | null = null;
+      const mediaNeedsOptimization = shouldOptimizeMediaForTranscript(file);
+      const filesToUpload: Array<{
+        file: File;
+        path: string;
+        bytes: number;
+        contentType: string;
+        kind: "source_file" | "transcript_audio_segment";
+      }> = [];
 
-      if (shouldUseResumableUpload(file)) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!session?.access_token) {
+      if (mediaNeedsOptimization) {
+        try {
+          const optimized = await optimizeMediaForTranscript(file, setFileStatus);
+          filesToUpload.push(
+            ...optimized.assets.map((asset, index) => ({
+              file: asset.file,
+              path: `${prep.storagePrefix}/transcript-audio/${String(index + 1).padStart(3, "0")}-${asset.file.name}`,
+              bytes: asset.bytes,
+              contentType: asset.contentType,
+              kind: "transcript_audio_segment" as const,
+            })),
+          );
+          setFileStatus("Uploading transcript-friendly audio...");
+        } catch (error) {
           await abortContentFileUpload(prep.contentItemId);
-          setFileError("Your session expired. Please sign in again and retry the upload.");
+          setFileError(
+            error instanceof Error
+              ? error.message
+              : "Could not prepare this media file for upload.",
+          );
+          setFileStatus(null);
           return;
         }
-
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const upload = new tus.Upload(file, {
-              endpoint: getResumableUploadEndpoint(process.env.NEXT_PUBLIC_SUPABASE_URL!),
-              chunkSize: 6 * 1024 * 1024,
-              retryDelays: [0, 3000, 5000, 10000, 20000],
-              uploadDataDuringCreation: true,
-              removeFingerprintOnSuccess: true,
-              headers: {
-                authorization: `Bearer ${session.access_token}`,
-                "x-upsert": "false",
-              },
-              metadata: {
-                bucketName: "content-files",
-                objectName: prep.storagePath,
-                contentType: file.type || "application/octet-stream",
-                cacheControl: "3600",
-              },
-              onError: (error) => reject(error),
-              onSuccess: () => resolve(),
-            });
-
-            void upload.findPreviousUploads().then((previousUploads) => {
-              if (previousUploads[0]) {
-                upload.resumeFromPreviousUpload(previousUploads[0]);
-              }
-              upload.start();
-            });
-          });
-        } catch (error) {
-          upErr = {
-            message: error instanceof Error ? error.message : "Upload to storage failed.",
-          };
-        }
       } else {
-        const { error } = await supabase.storage.from("content-files").upload(prep.storagePath, file, {
-          contentType: file.type || undefined,
-          upsert: false,
+        filesToUpload.push({
+          file,
+          path: prep.storagePath,
+          bytes: file.size,
+          contentType: file.type || "application/octet-stream",
+          kind: "source_file",
         });
-        upErr = error ? { message: error.message } : null;
+        setFileStatus("Uploading...");
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        await abortContentFileUpload(prep.contentItemId);
+        setFileError("Your session expired. Please sign in again and retry the upload.");
+        setFileStatus(null);
+        return;
+      }
+
+      for (const item of filesToUpload) {
+        if (shouldUseResumableUpload(item.file)) {
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const upload = new tus.Upload(item.file, {
+                endpoint: getResumableUploadEndpoint(process.env.NEXT_PUBLIC_SUPABASE_URL!),
+                chunkSize: 6 * 1024 * 1024,
+                retryDelays: [0, 3000, 5000, 10000, 20000],
+                uploadDataDuringCreation: true,
+                removeFingerprintOnSuccess: true,
+                headers: {
+                  authorization: `Bearer ${session.access_token}`,
+                  "x-upsert": "false",
+                },
+                metadata: {
+                  bucketName: "content-files",
+                  objectName: item.path,
+                  contentType: item.contentType,
+                  cacheControl: "3600",
+                },
+                onError: (error) => reject(error),
+                onSuccess: () => resolve(),
+              });
+
+              void upload.findPreviousUploads().then((previousUploads) => {
+                if (previousUploads[0]) {
+                  upload.resumeFromPreviousUpload(previousUploads[0]);
+                }
+                upload.start();
+              });
+            });
+          } catch (error) {
+            upErr = {
+              message: error instanceof Error ? error.message : "Upload to storage failed.",
+            };
+          }
+        } else {
+          const { error } = await supabase.storage.from("content-files").upload(item.path, item.file, {
+            contentType: item.contentType || undefined,
+            upsert: false,
+          });
+          upErr = error ? { message: error.message } : null;
+        }
+
+        if (upErr) {
+          break;
+        }
+
+        uploadedAssets.push({
+          path: item.path,
+          bytes: item.bytes,
+          contentType: item.contentType,
+          kind: item.kind,
+        });
       }
 
       if (upErr) {
-        await abortContentFileUpload(prep.contentItemId);
+        await abortContentFileUpload(
+          prep.contentItemId,
+          uploadedAssets.map((asset) => asset.path),
+        );
+        setFileStatus(null);
         if (/maximum upload size|entity too large|payload too large|413/i.test(upErr.message)) {
           setFileError("Upload rejected by storage before the file reached the 2GB bucket limit.");
         } else if (/size|too large/i.test(upErr.message)) {
@@ -178,8 +250,10 @@ export function ContentUploadForm() {
         return;
       }
 
-      const result = await finalizeContentFileUpload(prep.contentItemId);
+      setFileStatus("Finalizing upload...");
+      const result = await finalizeContentFileUpload(prep.contentItemId, uploadedAssets);
       if (!result.ok) {
+        setFileStatus(null);
         setFileError(result.error);
         return;
       }
@@ -190,6 +264,7 @@ export function ContentUploadForm() {
       } else {
         setLastSuccessId(result.contentItemId);
       }
+      setFileStatus(null);
     });
   }, [pollStatus]);
 
@@ -327,8 +402,8 @@ export function ContentUploadForm() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
             <p className="text-xs text-muted-foreground">
-              PDF, DOCX (instant), or MP4/MP3 (background transcription). Max 2 GB. Original
-              files are removed after text is extracted; only transcripts stay in your library.
+              PDF and DOCX are extracted instantly. MP4 and MP3 are converted into transcript-ready
+              audio, transcribed, and purged so only text stays in your library.
             </p>
           </div>
         </div>
@@ -380,7 +455,7 @@ export function ContentUploadForm() {
           {isPendingFile && (
             <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Uploading...
+              {fileStatus ?? "Uploading..."}
             </p>
           )}
         </div>
