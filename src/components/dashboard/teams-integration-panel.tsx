@@ -105,6 +105,40 @@ export function TeamsIntegrationPanel({
               <code className="rounded bg-background/60 px-1 text-[11px]">NEXT_PUBLIC_APP_URL</code>{" "}
               in Vercel to your production origin so OAuth redirects work, then redeploy.
             </>
+          ) : teamsReason === "invalid_client" ||
+            teamsReason === "invalid_client_token" ||
+            teamsReason?.startsWith("invalid_client:") ? (
+            <>
+              <span className="font-medium">Azure rejected the app (invalid client).</span> Usually
+              this means the <strong>Application (client) ID</strong>,{" "}
+              <strong>client secret</strong>, or <strong>redirect URI</strong> does not match what
+              is configured in Microsoft Entra ID. Checklist: (1) In{" "}
+              <strong>Entra ID → App registrations</strong>, open the app whose{" "}
+              <em>Application (client) ID</em> equals your{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code>. (2)
+              Under <strong>Certificates &amp; secrets</strong>, create a <em>new</em> client secret
+              and set <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>{" "}
+              to that value in Vercel (secrets expire). (3) Under{" "}
+              <strong>Authentication → Redirect URIs</strong>, add exactly:{" "}
+              <code className="mt-1 block break-all rounded bg-background/60 px-1 py-1 text-[11px]">
+                {publicAppOrigin}/api/teams/oauth
+              </code>{" "}
+              (Web platform). (4) <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code>{" "}
+              must be the <em>Directory (tenant) ID</em> of the same tenant where that app is
+              registered. Then redeploy.
+              {teamsReason?.startsWith("invalid_client:") ? (
+                <span className="mt-2 block text-xs opacity-90">
+                  Detail:{" "}
+                  {(() => {
+                    try {
+                      return decodeURIComponent(teamsReason.slice("invalid_client:".length));
+                    } catch {
+                      return teamsReason.slice("invalid_client:".length);
+                    }
+                  })()}
+                </span>
+              ) : null}
+            </>
           ) : (
             <>
               Teams connection failed

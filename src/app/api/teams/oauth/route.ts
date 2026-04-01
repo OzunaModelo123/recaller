@@ -7,58 +7,97 @@
 import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getPublicAppOrigin } from "@/lib/public-app-url";
 
 export const runtime = "nodejs";
 
-function redirect(key: "success" | "error", reason?: string) {
+function redirect(
+  key: "success" | "error",
+  reason?: string,
+  requestUrl?: string,
+) {
+  let base = getPublicAppOrigin();
+  if (!base && requestUrl) {
+    try {
+      base = new URL(requestUrl).origin;
+    } catch {
+      base = "";
+    }
+  }
   const dest = new URL(
     "/dashboard/integrations",
-    process.env.NEXT_PUBLIC_APP_URL!,
+    base || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   );
   dest.searchParams.set("teams", key);
   if (reason) dest.searchParams.set("reason", reason);
   return NextResponse.redirect(dest.toString());
 }
 
+function teamsOAuthRedirectUri(requestUrl?: string): string | null {
+  let base = getPublicAppOrigin();
+  if (!base && requestUrl) {
+    try {
+      base = new URL(requestUrl).origin;
+    } catch {
+      return null;
+    }
+  }
+  return base ? `${base}/api/teams/oauth` : null;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
+  const errorDescription = url.searchParams.get("error_description");
   const stateParam = url.searchParams.get("state");
 
   if (error || !code) {
-    return redirect("error", error ?? "missing_code");
+    const reason =
+      error === "invalid_client" && errorDescription
+        ? `invalid_client:${encodeURIComponent(errorDescription.slice(0, 200))}`
+        : (error ?? "missing_code");
+    console.error("[Teams OAuth] authorize callback error", {
+      error,
+      errorDescription,
+    });
+    return redirect("error", reason, request.url);
   }
 
   if (!stateParam) {
-    return redirect("error", "missing_state");
+    return redirect("error", "missing_state", request.url);
   }
 
   let state: { orgId: string };
   try {
     state = JSON.parse(Buffer.from(stateParam, "base64url").toString()) as { orgId: string };
   } catch {
-    return redirect("error", "invalid_state");
+    return redirect("error", "invalid_state", request.url);
   }
 
   const orgId = state.orgId;
-  if (!orgId) return redirect("error", "missing_org_id");
+  if (!orgId) return redirect("error", "missing_org_id", request.url);
 
   const tenantId = process.env.TEAMS_TENANT_ID;
   const appId = process.env.TEAMS_APP_ID;
   const appPassword = process.env.TEAMS_APP_PASSWORD;
 
   if (!tenantId || !appId || !appPassword) {
-    return redirect("error", "missing_teams_env");
+    return redirect("error", "missing_teams_env", request.url);
+  }
+
+  const redirectUri = teamsOAuthRedirectUri(request.url);
+  if (!redirectUri) {
+    return redirect("error", "missing_app_url", request.url);
   }
 
   try {
     const tokenBody = new URLSearchParams({
-      client_id: appId,
-      client_secret: appPassword,
+      client_id: appId.trim(),
+      client_secret: appPassword.trim(),
       code,
       grant_type: "authorization_code",
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/teams/oauth`,
+      redirect_uri: redirectUri,
       scope: "https://graph.microsoft.com/.default",
     });
 
@@ -74,6 +113,14 @@ export async function GET(request: Request) {
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
       console.error("[Teams OAuth] token exchange failed", text);
+      try {
+        const j = JSON.parse(text) as { error?: string };
+        if (j.error === "invalid_client") {
+          throw new Error("invalid_client_token");
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === "invalid_client_token") throw e;
+      }
       throw new Error("token_exchange_failed");
     }
 
@@ -123,12 +170,13 @@ export async function GET(request: Request) {
 
     await mapTeamsUsersToRecaller(tokenData.access_token, orgId);
 
-    return redirect("success");
+    return redirect("success", undefined, request.url);
   } catch (err) {
     console.error("[Teams OAuth]", err);
     return redirect(
       "error",
       err instanceof Error ? err.message : "unknown",
+      request.url,
     );
   }
 }
