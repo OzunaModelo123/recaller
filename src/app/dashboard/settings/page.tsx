@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CreditCard, Building2, Plug } from "lucide-react";
+import { Building2, Plug } from "lucide-react";
 
 import { EMPTY_ORG_CONTEXT } from "@/lib/ai/orgContext";
 import { CompanyContextSettingsPanel } from "@/components/dashboard/company-context-forms";
 import { AdminIntegrationsGrid } from "@/components/dashboard/admin-integrations-grid";
+import { BillingSection } from "@/components/dashboard/billing-section";
 import { Button } from "@/components/ui/button";
 import { loadAdminIntegrationsForUser } from "@/lib/dashboard/load-admin-integrations";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ slack?: string; reason?: string }>;
+  searchParams: Promise<{ slack?: string; reason?: string; billing?: string }>;
 };
 
 export default async function SettingsPage({ searchParams }: Props) {
@@ -33,6 +34,28 @@ export default async function SettingsPage({ searchParams }: Props) {
     isAdmin && user ? await loadAdminIntegrationsForUser(supabase, user.id) : null;
 
   const initial = integrationsData?.initialOrgContext ?? EMPTY_ORG_CONTEXT;
+
+  let subscription = null;
+  let teamMemberCount = 0;
+  if (isAdmin && profile?.org_id) {
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select(
+        "plan_tier, status, seat_count, seat_limit, trial_ends_at, current_period_end, stripe_customer_id",
+      )
+      .eq("org_id", profile.org_id)
+      .maybeSingle();
+    subscription = sub;
+
+    const { count } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", profile.org_id);
+    teamMemberCount = count ?? 0;
+  }
+
+  const starterPriceId = process.env.STRIPE_STARTER_PRICE_ID ?? "";
+  const growthPriceId = process.env.STRIPE_GROWTH_PRICE_ID ?? "";
 
   return (
     <div className="space-y-8">
@@ -66,39 +89,26 @@ export default async function SettingsPage({ searchParams }: Props) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {[
-          {
-            icon: Building2,
-            label: "Organization",
-            desc: "Manage your org profile, name, and preferences.",
-            color: "text-primary",
-            bg: "bg-secondary border border-border",
-          },
-          {
-            icon: CreditCard,
-            label: "Billing",
-            desc: "Manage your subscription, seats, and invoices.",
-            color: "text-primary",
-            bg: "bg-secondary border border-border",
-          },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
-          >
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.bg}`}>
-              <item.icon className={`h-5 w-5 ${item.color}`} />
-            </div>
-            <h3 className="mt-4 text-base font-semibold text-foreground">{item.label}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {item.desc}
-            </p>
-            <div className="mt-4 inline-flex rounded-lg border border-border bg-secondary px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-              Coming soon
-            </div>
-          </div>
-        ))}
+      {isAdmin && (
+        <BillingSection
+          subscription={subscription}
+          teamMemberCount={teamMemberCount}
+          prices={{ starterPriceId, growthPriceId }}
+          billingResult={params.billing ?? null}
+        />
+      )}
+
+      <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary border border-border">
+          <Building2 className="h-5 w-5 text-primary" />
+        </div>
+        <h3 className="mt-4 text-base font-semibold text-foreground">Organization</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Manage your org profile, name, and preferences.
+        </p>
+        <div className="mt-4 inline-flex rounded-lg border border-border bg-secondary px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+          Coming soon
+        </div>
       </div>
     </div>
   );
