@@ -1,5 +1,6 @@
 "use client";
 
+import * as tus from "tus-js-client";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Check, CloudUpload, Link2, Loader2, X } from "lucide-react";
@@ -16,6 +17,18 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 
 const STATUS_ORDER = ["queued", "transcribing", "analyzing", "ready"] as const;
+const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
+
+function getResumableUploadEndpoint(supabaseUrl: string): string {
+  const url = new URL(supabaseUrl);
+  url.hostname = `${url.hostname.split(".")[0]}.storage.supabase.co`;
+  url.pathname = "/storage/v1/upload/resumable";
+  return url.toString();
+}
+
+function shouldUseResumableUpload(file: File): boolean {
+  return file.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES;
+}
 
 function statusProgress(status: string): number {
   if (status === "failed") return 100;
@@ -96,16 +109,66 @@ export function ContentUploadForm() {
       }
 
       const supabase = createClient();
-      const { error: upErr } = await supabase.storage
-        .from("content-files")
-        .upload(prep.storagePath, file, {
+      let upErr: { message: string } | null = null;
+
+      if (shouldUseResumableUpload(file)) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          await abortContentFileUpload(prep.contentItemId);
+          setFileError("Your session expired. Please sign in again and retry the upload.");
+          return;
+        }
+
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const upload = new tus.Upload(file, {
+              endpoint: getResumableUploadEndpoint(process.env.NEXT_PUBLIC_SUPABASE_URL!),
+              chunkSize: 6 * 1024 * 1024,
+              retryDelays: [0, 3000, 5000, 10000, 20000],
+              uploadDataDuringCreation: true,
+              removeFingerprintOnSuccess: true,
+              headers: {
+                authorization: `Bearer ${session.access_token}`,
+                "x-upsert": "false",
+              },
+              metadata: {
+                bucketName: "content-files",
+                objectName: prep.storagePath,
+                contentType: file.type || "application/octet-stream",
+                cacheControl: "3600",
+              },
+              onError: (error) => reject(error),
+              onSuccess: () => resolve(),
+            });
+
+            void upload.findPreviousUploads().then((previousUploads) => {
+              if (previousUploads[0]) {
+                upload.resumeFromPreviousUpload(previousUploads[0]);
+              }
+              upload.start();
+            });
+          });
+        } catch (error) {
+          upErr = {
+            message: error instanceof Error ? error.message : "Upload to storage failed.",
+          };
+        }
+      } else {
+        const { error } = await supabase.storage.from("content-files").upload(prep.storagePath, file, {
           contentType: file.type || undefined,
           upsert: false,
         });
+        upErr = error ? { message: error.message } : null;
+      }
 
       if (upErr) {
         await abortContentFileUpload(prep.contentItemId);
-        if (/size|too large|413/i.test(upErr.message)) {
+        if (/maximum upload size|entity too large|payload too large|413/i.test(upErr.message)) {
+          setFileError("Upload rejected by storage before the file reached the 2GB bucket limit.");
+        } else if (/size|too large/i.test(upErr.message)) {
           setFileError(
             "Upload rejected (size limit). Files over 2GB are blocked by the storage bucket limit.",
           );
@@ -264,7 +327,7 @@ export function ContentUploadForm() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
             <p className="text-xs text-muted-foreground">
-              PDF, DOCX (instant), or MP4/MP3 (Whisper via Inngest). Max 2 GB. Original
+              PDF, DOCX (instant), or MP4/MP3 (background transcription). Max 2 GB. Original
               files are removed after text is extracted; only transcripts stay in your library.
             </p>
           </div>

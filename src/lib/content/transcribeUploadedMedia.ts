@@ -1,7 +1,17 @@
+import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import ffmpegPath from "ffmpeg-static";
+import ffprobe from "ffprobe-static";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
 import { purgeContentSourceFile } from "@/lib/content/purgeContentSourceFile";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+const OPENAI_TRANSCRIPTION_MAX_BYTES = 24 * 1024 * 1024;
+const COMPRESSED_AUDIO_BITRATE = "64k";
+const COMPRESSED_AUDIO_SAMPLE_RATE = "16000";
 
 function guessMimeAndName(filePath: string): { basename: string; mime: string } {
   const basename = filePath.split("/").pop() || "media.bin";
@@ -13,6 +23,179 @@ function guessMimeAndName(filePath: string): { basename: string; mime: string } 
   if (lower.endsWith(".webm")) return { basename, mime: "audio/webm" };
   if (lower.endsWith(".mpeg") || lower.endsWith(".mpga")) return { basename, mime: "audio/mpeg" };
   return { basename, mime: "application/octet-stream" };
+}
+
+async function runBinary(command: string, args: string[]): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stderr = "";
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(stderr.trim() || `${path.basename(command)} exited with code ${code}`));
+    });
+  });
+}
+
+async function getMediaDurationSeconds(filePath: string): Promise<number> {
+  const output = await new Promise<string>((resolve, reject) => {
+    const child = spawn(ffprobe.path, [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      filePath,
+    ]);
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout.trim());
+        return;
+      }
+      reject(new Error(stderr.trim() || "ffprobe failed"));
+    });
+  });
+
+  const duration = Number.parseFloat(output);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new Error("Could not determine media duration for transcription");
+  }
+  return duration;
+}
+
+async function compressMediaToAudio(sourcePath: string, outputPath: string): Promise<void> {
+  if (!ffmpegPath) {
+    throw new Error("ffmpeg is not available for media transcription");
+  }
+
+  await runBinary(ffmpegPath, [
+    "-y",
+    "-i",
+    sourcePath,
+    "-vn",
+    "-ac",
+    "1",
+    "-ar",
+    COMPRESSED_AUDIO_SAMPLE_RATE,
+    "-b:a",
+    COMPRESSED_AUDIO_BITRATE,
+    outputPath,
+  ]);
+}
+
+async function splitAudioIntoChunks(audioPath: string, tempDir: string): Promise<string[]> {
+  if (!ffmpegPath) {
+    throw new Error("ffmpeg is not available for media transcription");
+  }
+
+  const stats = await fs.stat(audioPath);
+  if (stats.size <= OPENAI_TRANSCRIPTION_MAX_BYTES) {
+    return [audioPath];
+  }
+
+  const durationSeconds = await getMediaDurationSeconds(audioPath);
+  const targetChunkCount = Math.ceil(stats.size / OPENAI_TRANSCRIPTION_MAX_BYTES);
+  const segmentDurationSeconds = Math.max(60, Math.ceil(durationSeconds / targetChunkCount));
+  const chunkPattern = path.join(tempDir, "chunk-%03d.mp3");
+
+  await runBinary(ffmpegPath, [
+    "-y",
+    "-i",
+    audioPath,
+    "-f",
+    "segment",
+    "-segment_time",
+    String(segmentDurationSeconds),
+    "-reset_timestamps",
+    "1",
+    "-c",
+    "copy",
+    chunkPattern,
+  ]);
+
+  const files = (await fs.readdir(tempDir))
+    .filter((file) => /^chunk-\d+\.mp3$/.test(file))
+    .sort((a, b) => a.localeCompare(b))
+    .map((file) => path.join(tempDir, file));
+
+  if (files.length === 0) {
+    throw new Error("No transcription chunks were produced for this media file");
+  }
+
+  return files;
+}
+
+async function transcribeChunk(openai: OpenAI, chunkPath: string, index: number): Promise<string> {
+  const buffer = await fs.readFile(chunkPath);
+  const file = await toFile(buffer, `chunk-${String(index + 1).padStart(3, "0")}.mp3`, {
+    type: "audio/mpeg",
+  });
+
+  const transcription = await openai.audio.transcriptions.create({
+    file,
+    model: "whisper-1",
+  });
+
+  return transcription.text?.trim() ?? "";
+}
+
+async function transcribeMediaBuffer(
+  openai: OpenAI,
+  buffer: Buffer,
+  originalBasename: string,
+): Promise<{ text: string; chunkCount: number }> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "recaller-transcribe-"));
+  const sourcePath = path.join(tempDir, originalBasename);
+  const compressedAudioPath = path.join(tempDir, "normalized-audio.mp3");
+
+  try {
+    await fs.writeFile(sourcePath, buffer);
+    await compressMediaToAudio(sourcePath, compressedAudioPath);
+
+    const chunks = await splitAudioIntoChunks(compressedAudioPath, tempDir);
+    const transcripts: string[] = [];
+
+    for (const [index, chunkPath] of chunks.entries()) {
+      const text = await transcribeChunk(openai, chunkPath, index);
+      if (text) {
+        transcripts.push(text);
+      }
+    }
+
+    const merged = transcripts.join("\n\n").trim();
+    if (!merged) {
+      throw new Error("Whisper returned empty text");
+    }
+
+    return {
+      text: merged,
+      chunkCount: chunks.length,
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 export async function transcribeUploadedMedia(contentItemId: string): Promise<void> {
@@ -55,26 +238,16 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
     }
 
     const buffer = Buffer.from(await blob.arrayBuffer());
-    const { basename, mime } = guessMimeAndName(item.file_path);
-    const file = await toFile(buffer, basename, { type: mime });
-
+    const { basename } = guessMimeAndName(item.file_path);
     const openai = new OpenAI({ apiKey });
-    const transcription = await openai.audio.transcriptions.create({
-      file,
-      model: "whisper-1",
-    });
-
-    const text = transcription.text?.trim() ?? "";
-    if (!text) {
-      throw new Error("Whisper returned empty text");
-    }
+    const { text, chunkCount } = await transcribeMediaBuffer(openai, buffer, basename);
 
     const { error: updateError } = await admin
       .from("content_items")
       .update({
         transcript: text,
         status: "ready",
-        metadata: { ...baseMeta, whisper: true },
+        metadata: { ...baseMeta, whisper: true, transcription_chunks: chunkCount },
       })
       .eq("id", contentItemId);
     if (updateError) {
