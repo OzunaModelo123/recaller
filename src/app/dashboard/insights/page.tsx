@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ClipboardList, FileText, Calendar, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, Calendar, ClipboardList, FileText, Sparkles, Users } from "lucide-react";
 
+import { InsightsClient } from "@/components/dashboard/insights-client";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { loadInsightReports, loadLiveAnalytics } from "@/lib/dashboard/load-insights";
-import { InsightsCharts } from "@/components/dashboard/insights-charts";
 
 export default async function InsightsPage() {
   const supabase = await createClient();
@@ -33,19 +33,31 @@ export default async function InsightsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Insights
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            Live metrics from assignments, plan steps, and completions — plus saved AI
-            reports below.
-            <span className="ml-2 text-xs text-muted-foreground/70">
-              Activity window: {analytics.periodLabel} · Times: {analytics.timeZoneLabel}
-            </span>
-          </p>
-        </div>
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 py-6 shadow-[var(--shadow-card)] md:px-7 md:py-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,97,60,0.08),transparent_45%)]" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Manager analytics
+              </p>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+                Insights
+              </h1>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Clear, live analytics for what managers actually care about:
+                progress, speed, bottlenecks, participation, and proof of work.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">
+                Activity window: {analytics.periodLabel}
+              </span>
+              <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">
+                Timezone auto-detects from the viewer
+              </span>
+            </div>
+          </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" className="rounded-lg" asChild>
             <Link href="/dashboard">
@@ -67,9 +79,10 @@ export default async function InsightsPage() {
           </Button>
         </div>
       </div>
+      </div>
 
       {hasAssignments ? (
-        <InsightsCharts {...analytics} />
+        <InsightsClient initialAnalytics={analytics} />
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card py-16 text-center">
           <div className="relative">
@@ -81,17 +94,25 @@ export default async function InsightsPage() {
             Not enough data yet
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Assign training plans and collect completions. Analytics will appear
-            once employees start completing steps.
+            Assign training plans and collect completions. Insights will become useful
+            as soon as people start working through steps.
           </p>
         </div>
       )}
 
       {reports.length > 0 && (
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-foreground">
-            Generated Reports
-          </h2>
+        <div className="space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+            <h2 className="text-lg font-semibold text-foreground">Generated reports</h2>
+            <p className="text-sm text-muted-foreground">
+              Saved AI summaries based on the same tracked metrics shown above.
+            </p>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {reports.length} saved
+            </span>
+          </div>
           <div className="space-y-3">
             {reports.map((report) => (
               <div
@@ -103,31 +124,29 @@ export default async function InsightsPage() {
                   <div>
                     <p className="text-sm font-medium text-foreground">
                       {report.report_type === "monthly"
-                        ? "Monthly Insight Report"
+                        ? "Monthly insight report"
                         : report.report_type}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3" />
-                      {new Date(report.period_start).toLocaleDateString(
-                        "en-US",
-                        { month: "short", year: "numeric" },
-                      )}{" "}
+                      {new Date(report.period_start).toLocaleDateString("en-US", {
+                        month: "short",
+                        year: "numeric",
+                      })}{" "}
                       –{" "}
-                      {new Date(report.period_end).toLocaleDateString(
-                        "en-US",
-                        { month: "short", year: "numeric" },
-                      )}
+                      {new Date(report.period_end).toLocaleDateString("en-US", {
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(report.generated_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(report.generated_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
               </div>
             ))}
           </div>
