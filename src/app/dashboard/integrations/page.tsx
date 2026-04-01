@@ -12,7 +12,6 @@ type Props = {
   searchParams: Promise<{
     slack?: string;
     reason?: string;
-    teams?: string;
   }>;
 };
 
@@ -46,8 +45,6 @@ export default async function DashboardIntegrationsPage({ searchParams }: Props)
         data={data}
         slackResult={params.slack ?? null}
         slackReason={params.reason ?? null}
-        teamsResult={params.teams ?? null}
-        teamsReason={params.reason ?? null}
       />
     </div>
   );

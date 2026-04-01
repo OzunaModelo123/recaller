@@ -6,8 +6,6 @@ type Props = {
   data: AdminIntegrationsLoad;
   slackResult: string | null;
   slackReason: string | null;
-  teamsResult: string | null;
-  teamsReason: string | null;
 };
 
 /** Slack + Teams cards for admin Integrations hub (Settings and /dashboard/integrations). */
@@ -15,8 +13,6 @@ export function AdminIntegrationsGrid({
   data,
   slackResult,
   slackReason,
-  teamsResult,
-  teamsReason,
 }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -35,9 +31,6 @@ export function AdminIntegrationsGrid({
         connected={data.teamsConnected}
         tenantId={data.teamsTenantId}
         mappedUsers={data.teamsMappedUsers}
-        teamsResult={teamsResult}
-        teamsReason={teamsReason}
-        teamsOAuthUrl={data.teamsOAuthUrl}
         publicAppOrigin={data.publicAppOrigin}
         teamsEnvConfigured={data.teamsEnvConfigured}
       />

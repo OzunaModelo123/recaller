@@ -10,7 +10,7 @@ import { loadAdminIntegrationsForUser } from "@/lib/dashboard/load-admin-integra
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ slack?: string; reason?: string; teams?: string }>;
+  searchParams: Promise<{ slack?: string; reason?: string }>;
 };
 
 export default async function SettingsPage({ searchParams }: Props) {
@@ -62,8 +62,6 @@ export default async function SettingsPage({ searchParams }: Props) {
             data={integrationsData}
             slackResult={params.slack ?? null}
             slackReason={params.reason ?? null}
-            teamsResult={params.teams ?? null}
-            teamsReason={params.reason ?? null}
           />
         </div>
       ) : null}
