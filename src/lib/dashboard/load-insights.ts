@@ -17,12 +17,15 @@ export type LiveAnalyticsPayload = OrgInsightsBundle & {
   periodLabel: string;
 };
 
-export async function loadLiveAnalytics(orgId: string): Promise<LiveAnalyticsPayload> {
+export async function loadLiveAnalytics(
+  orgId: string,
+  timeZone?: string,
+): Promise<LiveAnalyticsPayload> {
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const periodEnd = now;
 
-  const bundle = await computeOrgInsights(orgId, periodStart, periodEnd);
+  const bundle = await computeOrgInsights(orgId, periodStart, periodEnd, timeZone);
 
   return {
     ...bundle,
