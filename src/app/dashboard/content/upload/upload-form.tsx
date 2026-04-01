@@ -21,7 +21,16 @@ import {
 } from "@/lib/content/clientMediaOptimizer";
 
 const STATUS_ORDER = ["queued", "transcribing", "analyzing", "ready"] as const;
-const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
+
+/**
+ * Supabase recommends TUS for files over 6MB, but the standard `storage.upload()` path often hits a
+ * lower platform/request limit than `storage.buckets.file_size_limit` (e.g. 50MB on the REST API).
+ * Using resumable uploads for every object keeps behavior consistent and avoids false "2GB bucket"
+ * errors on large MP3s or multi-part transcript audio.
+ *
+ * @see https://supabase.com/docs/guides/storage/uploads/resumable-uploads
+ */
+const TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 function getResumableUploadEndpoint(supabaseUrl: string): string {
   const url = new URL(supabaseUrl);
@@ -30,8 +39,8 @@ function getResumableUploadEndpoint(supabaseUrl: string): string {
   return url.toString();
 }
 
-function shouldUseResumableUpload(file: File): boolean {
-  return file.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES;
+function storageContentType(contentType: string): string {
+  return contentType.split(";")[0]?.trim() || "application/octet-stream";
 }
 
 function statusProgress(status: string): number {
@@ -146,53 +155,54 @@ export function ContentUploadForm() {
       };
 
       async function uploadStorageObject(item: UploadItem): Promise<{ ok: true } | { ok: false; message: string }> {
-        if (shouldUseResumableUpload(item.file)) {
-          try {
-            await new Promise<void>((resolve, reject) => {
-              const upload = new tus.Upload(item.file, {
-                endpoint: getResumableUploadEndpoint(process.env.NEXT_PUBLIC_SUPABASE_URL!),
-                chunkSize: 6 * 1024 * 1024,
-                retryDelays: [0, 3000, 5000, 10000, 20000],
-                uploadDataDuringCreation: true,
-                removeFingerprintOnSuccess: true,
-                headers: {
-                  authorization: `Bearer ${accessToken}`,
-                  "x-upsert": "false",
-                },
-                metadata: {
-                  bucketName: "content-files",
-                  objectName: item.path,
-                  contentType: item.contentType,
-                  cacheControl: "3600",
-                },
-                onError: (error) => reject(error),
-                onSuccess: () => resolve(),
-              });
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!supabaseUrl?.trim()) {
+          return { ok: false, message: "Missing NEXT_PUBLIC_SUPABASE_URL." };
+        }
+        if (!anonKey?.trim()) {
+          return { ok: false, message: "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY." };
+        }
 
-              void upload.findPreviousUploads().then((previousUploads) => {
-                if (previousUploads[0]) {
-                  upload.resumeFromPreviousUpload(previousUploads[0]);
-                }
-                upload.start();
-              });
+        const typeForStorage = storageContentType(item.contentType);
+
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const upload = new tus.Upload(item.file, {
+              endpoint: getResumableUploadEndpoint(supabaseUrl),
+              chunkSize: TUS_CHUNK_SIZE_BYTES,
+              retryDelays: [0, 3000, 5000, 10000, 20000],
+              uploadDataDuringCreation: true,
+              removeFingerprintOnSuccess: true,
+              headers: {
+                authorization: `Bearer ${accessToken}`,
+                apikey: anonKey,
+                "x-upsert": "false",
+              },
+              metadata: {
+                bucketName: "content-files",
+                objectName: item.path,
+                contentType: typeForStorage,
+                cacheControl: "3600",
+              },
+              onError: (error) => reject(error),
+              onSuccess: () => resolve(),
             });
-            return { ok: true };
-          } catch (error) {
-            return {
-              ok: false,
-              message: error instanceof Error ? error.message : "Upload to storage failed.",
-            };
-          }
-        }
 
-        const { error } = await supabase.storage.from("content-files").upload(item.path, item.file, {
-          contentType: item.contentType || undefined,
-          upsert: false,
-        });
-        if (error) {
-          return { ok: false, message: error.message };
+            void upload.findPreviousUploads().then((previousUploads) => {
+              if (previousUploads[0]) {
+                upload.resumeFromPreviousUpload(previousUploads[0]);
+              }
+              upload.start();
+            });
+          });
+          return { ok: true };
+        } catch (error) {
+          return {
+            ok: false,
+            message: error instanceof Error ? error.message : "Upload to storage failed.",
+          };
         }
-        return { ok: true };
       }
 
       const streamedPathsForAbort: string[] = [];
@@ -262,10 +272,12 @@ export function ContentUploadForm() {
         );
         setFileStatus(null);
         if (/maximum upload size|entity too large|payload too large|413/i.test(upErr.message)) {
-          setFileError("Upload rejected by storage before the file reached the 2GB bucket limit.");
+          setFileError(
+            `Storage rejected this upload (often a Supabase API or plan limit, not your bucket file_size_limit). ${upErr.message}`,
+          );
         } else if (/size|too large/i.test(upErr.message)) {
           setFileError(
-            "Upload rejected (size limit). Files over 2GB are blocked by the storage bucket limit.",
+            `Upload rejected (size limit). If the file is under 2GB, check Supabase Dashboard → Storage → your bucket limits and project upload caps. ${upErr.message}`,
           );
         } else {
           setFileError(upErr.message || "Upload to storage failed.");
