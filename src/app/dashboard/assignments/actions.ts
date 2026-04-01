@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { notifySlackAssignmentOnCreate } from "@/lib/notifications/notify-employee-slack-assignment";
-import { notifyTeamsAssignmentOnCreate } from "@/lib/notifications/notify-employee-teams-assignment";
+import {
+  notifyTeamsAssignmentOnCreate,
+  type TeamsAssignmentPushResult,
+} from "@/lib/notifications/notify-employee-teams-assignment";
 import { createClient } from "@/lib/supabase/server";
 
 async function requireOrgAdmin() {
@@ -251,6 +254,81 @@ export async function assignPlanToEmployeeAction(input: {
   revalidatePath("/employee");
   revalidatePath("/employee/my-plans");
   return { ok: true as const };
+}
+
+function teamsPushMessage(result: TeamsAssignmentPushResult): string {
+  if (result.ok) return "Sent Adaptive Card to Teams.";
+  if (result.reason === "no_installation") {
+    return "Teams is not connected (complete Integrations → Microsoft Teams).";
+  }
+  if (result.reason === "no_teams_user") {
+    return "This employee has no Teams link — open Integrations → Sync Users, or ask them to message the bot once.";
+  }
+  return result.detail ?? "Teams send failed.";
+}
+
+/** Re-push assignment Adaptive Card(s) to Teams for testing or reminders. */
+export async function pushAssignmentsToTeamsAction(assignmentIds: string[]) {
+  const ctx = await requireOrgAdmin();
+  if (ctx.error || !ctx.orgId) {
+    return { ok: false as const, error: ctx.error ?? "Forbidden" };
+  }
+
+  const ids = [...new Set(assignmentIds.filter(Boolean))].slice(0, 40);
+  if (ids.length === 0) {
+    return { ok: false as const, error: "Select at least one assignment" };
+  }
+
+  const results: { assignmentId: string; success: boolean; message: string }[] =
+    [];
+
+  for (const assignmentId of ids) {
+    const { data: row } = await ctx.supabase
+      .from("assignments")
+      .select("id, org_id, status, assigned_to")
+      .eq("id", assignmentId)
+      .maybeSingle();
+
+    if (!row || row.org_id !== ctx.orgId) {
+      results.push({
+        assignmentId,
+        success: false,
+        message: "Assignment not found",
+      });
+      continue;
+    }
+    if (row.status === "cancelled") {
+      results.push({
+        assignmentId,
+        success: false,
+        message: "Cancelled assignments cannot be pushed",
+      });
+      continue;
+    }
+
+    const push = await notifyTeamsAssignmentOnCreate({
+      orgId: ctx.orgId,
+      assignmentId: row.id,
+      assigneeUserId: row.assigned_to,
+    });
+
+    results.push({
+      assignmentId,
+      success: push.ok,
+      message: teamsPushMessage(push),
+    });
+  }
+
+  const sent = results.filter((r) => r.success).length;
+  const failed = results.length - sent;
+
+  revalidatePath("/dashboard/assignments");
+  return {
+    ok: true as const,
+    sent,
+    failed,
+    results,
+  };
 }
 
 export async function createGroupAction(name: string) {

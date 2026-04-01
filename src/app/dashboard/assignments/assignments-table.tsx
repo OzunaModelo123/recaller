@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquareMore } from "lucide-react";
 
 import { CsvExportButton } from "@/components/dashboard/csv-export-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { cancelAssignmentsAction } from "./actions";
+import { cancelAssignmentsAction, pushAssignmentsToTeamsAction } from "./actions";
 
 export type AssignmentRow = {
   id: string;
@@ -31,6 +31,13 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
     .map((r) => r.id);
   const selectedCancellable = [...selected].filter((id) =>
     cancellableIds.includes(id),
+  );
+
+  const pushableIds = rows
+    .filter((r) => r.status !== "cancelled")
+    .map((r) => r.id);
+  const selectedPushable = [...selected].filter((id) =>
+    pushableIds.includes(id),
   );
 
   function toggle(id: string) {
@@ -63,6 +70,25 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
     });
   }
 
+  function pushTeamsSelected() {
+    setMessage(null);
+    startTransition(async () => {
+      const res = await pushAssignmentsToTeamsAction(selectedPushable);
+      if (!res.ok) {
+        setMessage(res.error);
+        return;
+      }
+      const lines = res.results.map(
+        (r) =>
+          `${r.success ? "✓" : "✗"} ${rows.find((x) => x.id === r.assignmentId)?.planTitle ?? r.assignmentId.slice(0, 8)}: ${r.message}`,
+      );
+      setMessage(
+        `Teams: ${res.sent} sent, ${res.failed} skipped/failed.\n${lines.join("\n")}`,
+      );
+      router.refresh();
+    });
+  }
+
   const csvRows = rows.map((r) => ({
     planTitle: r.planTitle,
     assignee: r.assigneeLabel,
@@ -86,6 +112,23 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
             {selected.size === cancellableIds.length && cancellableIds.length > 0
               ? "Clear selection"
               : "Select active"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={selectedPushable.length === 0 || pending}
+            onClick={pushTeamsSelected}
+            title="Sends the assignment Adaptive Card to each assignee’s Teams chat (needs Teams connected + user linked)."
+          >
+            {pending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <MessageSquareMore className="mr-1.5 h-4 w-4" />
+                Send to Teams ({selectedPushable.length})
+              </>
+            )}
           </Button>
           <Button
             type="button"
@@ -115,7 +158,9 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
         />
       </div>
       {message ? (
-        <p className="text-sm text-destructive">{message}</p>
+        <pre className="whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-sans text-xs text-foreground">
+          {message}
+        </pre>
       ) : null}
 
       <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-none">

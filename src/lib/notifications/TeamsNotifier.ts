@@ -41,6 +41,10 @@ async function getTeamsInstallation(orgId: string) {
 }
 
 export class TeamsNotifier {
+  /**
+   * Opens (or reuses) a 1:1 and posts the assignment Adaptive Card.
+   * @returns Teams activity id for the sent message
+   */
   async sendAssignment(
     teamsUserId: string,
     notification: {
@@ -48,7 +52,7 @@ export class TeamsNotifier {
       orgId: string;
       userId: string;
     },
-  ): Promise<string | undefined> {
+  ): Promise<string> {
     const sb = createAdminClient();
 
     const { data: assignee } = await sb
@@ -57,10 +61,14 @@ export class TeamsNotifier {
       .eq("id", notification.userId)
       .maybeSingle();
 
-    if (!assignee?.teams_user_id) return;
+    if (!assignee?.teams_user_id) {
+      throw new Error("Assignee has no teams_user_id");
+    }
 
     const inst = await getTeamsInstallation(notification.orgId);
-    if (!inst?.service_url || !inst.tenant_id) return;
+    if (!inst?.service_url || !inst.tenant_id) {
+      throw new Error("Teams installation missing service_url or tenant_id");
+    }
 
     const { data: assignment } = await sb
       .from("assignments")
@@ -69,7 +77,9 @@ export class TeamsNotifier {
       )
       .eq("id", notification.assignmentId)
       .single();
-    if (!assignment || assignment.org_id !== notification.orgId) return;
+    if (!assignment || assignment.org_id !== notification.orgId) {
+      throw new Error("Assignment not found or org mismatch");
+    }
 
     const { data: steps } = await sb
       .from("plan_steps")
@@ -126,26 +136,28 @@ export class TeamsNotifier {
         cardActivity(card),
       );
 
-      if (result.id) {
-        await sb.from("notifications").insert({
-          org_id: notification.orgId,
-          user_id: notification.userId,
-          type: "assignment",
-          channel: "teams",
-          payload: {
-            assignmentId: assignment.id,
-            planTitle,
-            teamsConversationId: convo.id,
-          },
-          teams_activity_id: result.id,
-          sent_at: new Date().toISOString(),
-        });
+      if (!result.id) {
+        throw new Error("Teams sendActivity returned no activity id");
       }
+
+      await sb.from("notifications").insert({
+        org_id: notification.orgId,
+        user_id: notification.userId,
+        type: "assignment",
+        channel: "teams",
+        payload: {
+          assignmentId: assignment.id,
+          planTitle,
+          teamsConversationId: convo.id,
+        },
+        teams_activity_id: result.id,
+        sent_at: new Date().toISOString(),
+      });
 
       return result.id;
     } catch (e) {
       console.error("[TeamsNotifier] sendAssignment failed", e);
-      return undefined;
+      throw e instanceof Error ? e : new Error(String(e));
     }
   }
 
