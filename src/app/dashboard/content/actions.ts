@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { extractArticleText } from "@/lib/content/articleExtractor";
 import { detectUrlSource } from "@/lib/content/detectUrlSource";
 import { extractDocxText } from "@/lib/content/docxExtractor";
@@ -12,6 +13,7 @@ import { extractYouTubeTranscript } from "@/lib/content/youtubeExtractor";
 import { inngest } from "@/lib/inngest/client";
 
 const MAX_FILE_BYTES = 500 * 1024 * 1024;
+const CONTENT_FILES_BUCKET = "content-files";
 
 type AdminContext =
   | { ok: true; supabase: Awaited<ReturnType<typeof createClient>>; userId: string; orgId: string }
@@ -180,8 +182,35 @@ export async function ingestContentUrl(url: string): Promise<IngestResult> {
 }
 
 export type PrepareUploadResult =
-  | { ok: true; contentItemId: string; storagePath: string }
+  | { ok: true; contentItemId: string; storagePath: string; uploadToken: string }
   | { ok: false; error: string };
+
+async function ensureContentFilesBucket(): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.storage.createBucket(CONTENT_FILES_BUCKET, {
+      public: false,
+      fileSizeLimit: MAX_FILE_BYTES,
+    });
+
+    if (error && !/already exists|duplicate/i.test(error.message)) {
+      return {
+        ok: false,
+        error: `Supabase storage is not ready: ${error.message}`,
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? `Storage setup failed: ${error.message}`
+          : "Storage setup failed.",
+    };
+  }
+}
 
 /**
  * Creates the content_items row and returns the storage path. The browser uploads the file
@@ -202,6 +231,11 @@ export async function prepareContentFileUpload(
   }
   if (fileSize > MAX_FILE_BYTES) {
     return { ok: false, error: "File is larger than 500MB." };
+  }
+
+  const bucketReady = await ensureContentFilesBucket();
+  if (!bucketReady.ok) {
+    return bucketReady;
   }
 
   const name = fileName.trim() || "upload";
@@ -246,7 +280,34 @@ export async function prepareContentFileUpload(
   const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
   const storagePath = `${orgId}/${row.id}/${safeName}`;
 
-  return { ok: true, contentItemId: row.id, storagePath };
+  try {
+    const admin = createAdminClient();
+    const { data, error: signedErr } = await admin.storage
+      .from(CONTENT_FILES_BUCKET)
+      .createSignedUploadUrl(storagePath, { upsert: false });
+
+    if (signedErr || !data?.token) {
+      await supabase.from("content_items").delete().eq("id", row.id);
+      return {
+        ok: false,
+        error: signedErr?.message ?? "Could not initialize file upload.",
+      };
+    }
+
+    return {
+      ok: true,
+      contentItemId: row.id,
+      storagePath,
+      uploadToken: data.token,
+    };
+  } catch (error) {
+    await supabase.from("content_items").delete().eq("id", row.id);
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not initialize file upload.",
+    };
+  }
 }
 
 export async function abortContentFileUpload(contentItemId: string): Promise<{ ok: boolean }> {
@@ -270,7 +331,12 @@ export async function abortContentFileUpload(contentItemId: string): Promise<{ o
     (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
   const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
   const storagePath = `${orgId}/${contentItemId}/${safeName}`;
-  await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+  try {
+    const admin = createAdminClient();
+    await admin.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+  } catch {
+    /* best effort cleanup */
+  }
   await supabase.from("content_items").delete().eq("id", contentItemId);
   return { ok: true };
 }
@@ -297,7 +363,16 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
   const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
   const storagePath = `${orgId}/${contentItemId}/${safeName}`;
 
-  const { data: blob, error: dlErr } = await supabase.storage.from("content-files").download(storagePath);
+  let blob: Blob | null = null;
+  let dlErr: { message?: string } | null = null;
+  try {
+    const admin = createAdminClient();
+    const result = await admin.storage.from(CONTENT_FILES_BUCKET).download(storagePath);
+    blob = result.data;
+    dlErr = result.error;
+  } catch (error) {
+    dlErr = { message: error instanceof Error ? error.message : "Storage download failed." };
+  }
   if (dlErr || !blob) {
     return { ok: false, error: dlErr?.message ?? "Uploaded file not found in storage." };
   }
@@ -309,7 +384,12 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
     try {
       const transcript =
         sourceType === "pdf" ? await extractPdfText(buffer) : await extractDocxText(buffer);
-      await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+      try {
+        const admin = createAdminClient();
+        await admin.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+      } catch {
+        /* best effort cleanup */
+      }
       const { error: upErr } = await supabase
         .from("content_items")
         .update({ transcript, status: "ready", file_path: null })
@@ -320,7 +400,12 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
       revalidatePath("/dashboard/content");
       return { ok: true, contentItemId, pollStatus: false };
     } catch (e) {
-      await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+      try {
+        const admin = createAdminClient();
+        await admin.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+      } catch {
+        /* best effort cleanup */
+      }
       await supabase.from("content_items").delete().eq("id", contentItemId);
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -333,7 +418,12 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
       .eq("id", contentItemId);
 
     if (upRowErr) {
-      await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+      try {
+        const admin = createAdminClient();
+        await admin.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+      } catch {
+        /* best effort cleanup */
+      }
       await supabase.from("content_items").delete().eq("id", contentItemId);
       return { ok: false, error: upRowErr.message };
     }
@@ -373,7 +463,12 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
     return { ok: true, contentItemId, pollStatus: true };
   }
 
-  await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+  try {
+    const admin = createAdminClient();
+    await admin.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
+  } catch {
+    /* best effort cleanup */
+  }
   await supabase.from("content_items").delete().eq("id", contentItemId);
   return { ok: false, error: "Unexpected content type." };
 }

@@ -98,9 +98,8 @@ export function ContentUploadForm() {
       const supabase = createClient();
       const { error: upErr } = await supabase.storage
         .from("content-files")
-        .upload(prep.storagePath, file, {
+        .uploadToSignedUrl(prep.storagePath, prep.uploadToken, file, {
           contentType: file.type || undefined,
-          upsert: false,
         });
 
       if (upErr) {
