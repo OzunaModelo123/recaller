@@ -29,9 +29,7 @@ export default async function InsightsPage() {
     loadLiveAnalytics(profile.org_id),
   ]);
 
-  const hasData =
-    analytics.velocity.totalCompleted > 0 ||
-    analytics.dropOff.stepCounts.length > 0;
+  const hasAssignments = analytics.summary.totalAssignments > 0;
 
   return (
     <div className="space-y-8">
@@ -41,9 +39,10 @@ export default async function InsightsPage() {
             Insights
           </h1>
           <p className="mt-2 text-base text-muted-foreground">
-            AI-powered analytics and reports on team training performance.
+            Live metrics from assignments, plan steps, and completions — plus saved AI
+            reports below.
             <span className="ml-2 text-xs text-muted-foreground/70">
-              {analytics.periodLabel}
+              Activity window: {analytics.periodLabel} · Times: {analytics.timeZoneLabel}
             </span>
           </p>
         </div>
@@ -69,15 +68,8 @@ export default async function InsightsPage() {
         </div>
       </div>
 
-      {hasData ? (
-        <InsightsCharts
-          velocity={analytics.velocity}
-          dropOff={analytics.dropOff}
-          heatmap={analytics.heatmap}
-          performers={analytics.performers}
-          effectiveness={analytics.effectiveness}
-          periodLabel={analytics.periodLabel}
-        />
+      {hasAssignments ? (
+        <InsightsCharts {...analytics} />
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card py-16 text-center">
           <div className="relative">

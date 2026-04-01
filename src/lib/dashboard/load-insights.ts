@@ -1,12 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  completionVelocity,
-  dropOffAnalysis,
-  categoryEngagement,
-  timeOfDayHeatmap,
-  performerRanking,
-  contentEffectiveness,
-} from "@/lib/ai/insightEngine";
+import { computeOrgInsights, type OrgInsightsBundle } from "@/lib/dashboard/orgInsights";
 
 export async function loadInsightReports(orgId: string) {
   const sb = createAdminClient();
@@ -20,28 +13,19 @@ export async function loadInsightReports(orgId: string) {
   return data ?? [];
 }
 
-export async function loadLiveAnalytics(orgId: string) {
+export type LiveAnalyticsPayload = OrgInsightsBundle & {
+  periodLabel: string;
+};
+
+export async function loadLiveAnalytics(orgId: string): Promise<LiveAnalyticsPayload> {
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const periodEnd = now;
 
-  const [velocity, dropOff, categories, heatmap, performers, effectiveness] =
-    await Promise.all([
-      completionVelocity(orgId, periodStart, periodEnd),
-      dropOffAnalysis(orgId, periodStart, periodEnd),
-      categoryEngagement(orgId, periodStart, periodEnd),
-      timeOfDayHeatmap(orgId, periodStart, periodEnd),
-      performerRanking(orgId, periodStart, periodEnd),
-      contentEffectiveness(orgId, periodStart, periodEnd),
-    ]);
+  const bundle = await computeOrgInsights(orgId, periodStart, periodEnd);
 
   return {
-    velocity,
-    dropOff,
-    categories,
-    heatmap,
-    performers,
-    effectiveness,
+    ...bundle,
     periodLabel: `${periodStart.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
