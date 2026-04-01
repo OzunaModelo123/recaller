@@ -1,6 +1,36 @@
-import { BarChart3, Sparkles } from "lucide-react";
+import { redirect } from "next/navigation";
+import { FileText, Calendar, Sparkles } from "lucide-react";
 
-export default function InsightsPage() {
+import { createClient } from "@/lib/supabase/server";
+import { loadInsightReports, loadLiveAnalytics } from "@/lib/dashboard/load-insights";
+import { InsightsCharts } from "@/components/dashboard/insights-charts";
+
+export default async function InsightsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("org_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.org_id || (profile.role !== "admin" && profile.role !== "super_admin")) {
+    redirect("/dashboard");
+  }
+
+  const [reports, analytics] = await Promise.all([
+    loadInsightReports(profile.org_id),
+    loadLiveAnalytics(profile.org_id),
+  ]);
+
+  const hasData =
+    analytics.velocity.totalCompleted > 0 ||
+    analytics.dropOff.stepCounts.length > 0;
+
   return (
     <div className="space-y-8">
       <div>
@@ -9,45 +39,84 @@ export default function InsightsPage() {
         </h1>
         <p className="mt-2 text-base text-muted-foreground">
           AI-powered analytics and reports on team training performance.
+          <span className="ml-2 text-xs text-muted-foreground/70">
+            {analytics.periodLabel}
+          </span>
         </p>
       </div>
 
-      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card py-20 text-center">
-        <div className="relative">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-none">
-            <BarChart3 className="h-6 w-6 text-primary" />
-          </div>
-          <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 ring-2 ring-border">
-            <Sparkles className="h-3 w-3 text-primary" />
-          </div>
-        </div>
-        <h3 className="mt-5 text-sm font-semibold text-foreground">
-          AI insights coming soon
-        </h3>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          After 30+ days of completion data, Recaller will generate AI-powered
-          narrative reports on learning trends, engagement patterns, and team
-          performance.
-        </p>
-
-        <div className="mx-auto mt-8 grid max-w-lg grid-cols-3 gap-4">
-          {[
-            { label: "Completion trends", desc: "Track progress over time" },
-            { label: "Learning patterns", desc: "Identify engagement peaks" },
-            { label: "Team reports", desc: "AI-written PDF summaries" },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="rounded-xl border border-border bg-card p-4 shadow-none"
-            >
-              <p className="text-xs font-semibold text-foreground">
-                {item.label}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">{item.desc}</p>
+      {hasData ? (
+        <InsightsCharts
+          velocity={analytics.velocity}
+          dropOff={analytics.dropOff}
+          heatmap={analytics.heatmap}
+          performers={analytics.performers}
+          effectiveness={analytics.effectiveness}
+          periodLabel={analytics.periodLabel}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card py-16 text-center">
+          <div className="relative">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card">
+              <Sparkles className="h-6 w-6 text-primary" />
             </div>
-          ))}
+          </div>
+          <h3 className="mt-5 text-sm font-semibold text-foreground">
+            Not enough data yet
+          </h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Assign training plans and collect completions. Analytics will appear
+            once employees start completing steps.
+          </p>
         </div>
-      </div>
+      )}
+
+      {reports.length > 0 && (
+        <div>
+          <h2 className="mb-4 text-lg font-semibold text-foreground">
+            Generated Reports
+          </h2>
+          <div className="space-y-3">
+            {reports.map((report) => (
+              <div
+                key={report.id}
+                className="flex items-center justify-between rounded-xl border border-border bg-card p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {report.report_type === "monthly"
+                        ? "Monthly Insight Report"
+                        : report.report_type}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(report.period_start).toLocaleDateString(
+                        "en-US",
+                        { month: "short", year: "numeric" },
+                      )}{" "}
+                      –{" "}
+                      {new Date(report.period_end).toLocaleDateString(
+                        "en-US",
+                        { month: "short", year: "numeric" },
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(report.generated_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
