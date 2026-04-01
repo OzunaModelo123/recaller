@@ -107,7 +107,7 @@ export function ContentUploadForm() {
         await abortContentFileUpload(prep.contentItemId);
         if (/size|too large|413/i.test(upErr.message)) {
           setFileError(
-            "Upload rejected (size limit). Supabase caps files per bucket settings; use a smaller file or raise the bucket limit.",
+            "Upload rejected (size limit). Files over 2GB are blocked by the storage bucket limit.",
           );
         } else {
           setFileError(upErr.message || "Upload to storage failed.");
@@ -264,7 +264,7 @@ export function ContentUploadForm() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
             <p className="text-xs text-muted-foreground">
-              PDF, DOCX (instant), or MP4/MP3 (Whisper via Inngest). Max 500 MB. Original
+              PDF, DOCX (instant), or MP4/MP3 (Whisper via Inngest). Max 2 GB. Original
               files are removed after text is extracted; only transcripts stay in your library.
             </p>
           </div>

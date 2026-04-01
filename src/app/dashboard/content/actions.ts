@@ -13,7 +13,7 @@ import { extractVimeoTranscript } from "@/lib/content/vimeoExtractor";
 import { extractYouTubeTranscript } from "@/lib/content/youtubeExtractor";
 import { inngest } from "@/lib/inngest/client";
 
-const MAX_FILE_BYTES = 500 * 1024 * 1024;
+const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024;
 const CONTENT_FILES_BUCKET = "content-files";
 
 type AdminContext =
@@ -205,7 +205,7 @@ export async function prepareContentFileUpload(
       return { ok: false, error: "Choose a file to upload." };
     }
     if (fileSize > MAX_FILE_BYTES) {
-      return { ok: false, error: "File is larger than 500MB." };
+      return { ok: false, error: "File is larger than 2GB." };
     }
 
     const name = fileName.trim() || "upload";
