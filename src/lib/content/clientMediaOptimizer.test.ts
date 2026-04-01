@@ -8,8 +8,8 @@ describe("shouldOptimizeMediaForTranscript", () => {
     expect(shouldOptimizeMediaForTranscript(file)).toBe(false);
   });
 
-  it("keeps mp4 uploads on the direct-to-storage path", () => {
+  it("keeps mp4 uploads on the transcript-audio path", () => {
     const file = new File(["video"], "demo.mp4", { type: "video/mp4" });
-    expect(shouldOptimizeMediaForTranscript(file)).toBe(false);
+    expect(shouldOptimizeMediaForTranscript(file)).toBe(true);
   });
 });

@@ -123,60 +123,29 @@ export function ContentUploadForm() {
       }> = [];
       let upErr: { message: string } | null = null;
       const mediaNeedsOptimization = shouldOptimizeMediaForTranscript(file);
-      const filesToUpload: Array<{
-        file: File;
-        path: string;
-        bytes: number;
-        contentType: string;
-        kind: "source_file" | "transcript_audio_segment";
-      }> = [];
-
-      if (mediaNeedsOptimization) {
-        try {
-          const optimized = await optimizeMediaForTranscript(file, setFileStatus);
-          filesToUpload.push(
-            ...optimized.assets.map((asset, index) => ({
-              file: asset.file,
-              path: `${prep.storagePrefix}/transcript-audio/${String(index + 1).padStart(3, "0")}-${asset.file.name}`,
-              bytes: asset.bytes,
-              contentType: asset.contentType,
-              kind: "transcript_audio_segment" as const,
-            })),
-          );
-          setFileStatus("Uploading transcript-friendly audio...");
-        } catch (error) {
-          await abortContentFileUpload(prep.contentItemId);
-          setFileError(
-            error instanceof Error
-              ? error.message
-              : "Could not prepare this media file for upload.",
-          );
-          setFileStatus(null);
-          return;
-        }
-      } else {
-        filesToUpload.push({
-          file,
-          path: prep.storagePath,
-          bytes: file.size,
-          contentType: file.type || "application/octet-stream",
-          kind: "source_file",
-        });
-        setFileStatus("Uploading...");
-      }
 
       const {
-        data: { session },
+        data: { session: authSession },
       } = await supabase.auth.getSession();
 
-      if (!session?.access_token) {
+      if (!authSession?.access_token) {
         await abortContentFileUpload(prep.contentItemId);
         setFileError("Your session expired. Please sign in again and retry the upload.");
         setFileStatus(null);
         return;
       }
 
-      for (const item of filesToUpload) {
+      const accessToken = authSession.access_token;
+
+      type UploadItem = {
+        file: File;
+        path: string;
+        bytes: number;
+        contentType: string;
+        kind: "source_file" | "transcript_audio_segment";
+      };
+
+      async function uploadStorageObject(item: UploadItem): Promise<{ ok: true } | { ok: false; message: string }> {
         if (shouldUseResumableUpload(item.file)) {
           try {
             await new Promise<void>((resolve, reject) => {
@@ -187,7 +156,7 @@ export function ContentUploadForm() {
                 uploadDataDuringCreation: true,
                 removeFingerprintOnSuccess: true,
                 headers: {
-                  authorization: `Bearer ${session.access_token}`,
+                  authorization: `Bearer ${accessToken}`,
                   "x-upsert": "false",
                 },
                 metadata: {
@@ -207,29 +176,83 @@ export function ContentUploadForm() {
                 upload.start();
               });
             });
+            return { ok: true };
           } catch (error) {
-            upErr = {
+            return {
+              ok: false,
               message: error instanceof Error ? error.message : "Upload to storage failed.",
             };
           }
-        } else {
-          const { error } = await supabase.storage.from("content-files").upload(item.path, item.file, {
-            contentType: item.contentType || undefined,
-            upsert: false,
-          });
-          upErr = error ? { message: error.message } : null;
         }
 
-        if (upErr) {
-          break;
-        }
-
-        uploadedAssets.push({
-          path: item.path,
-          bytes: item.bytes,
-          contentType: item.contentType,
-          kind: item.kind,
+        const { error } = await supabase.storage.from("content-files").upload(item.path, item.file, {
+          contentType: item.contentType || undefined,
+          upsert: false,
         });
+        if (error) {
+          return { ok: false, message: error.message };
+        }
+        return { ok: true };
+      }
+
+      const streamedPathsForAbort: string[] = [];
+
+      if (mediaNeedsOptimization) {
+        try {
+          setFileStatus("Preparing transcript-friendly audio...");
+          await optimizeMediaForTranscript(file, setFileStatus, {
+            onStreamPart: async (part) => {
+              const item: UploadItem = {
+                file: part.file,
+                path: `${prep.storagePrefix}/transcript-audio/${String(part.index + 1).padStart(3, "0")}-${part.file.name}`,
+                bytes: part.bytes,
+                contentType: part.contentType,
+                kind: "transcript_audio_segment",
+              };
+              setFileStatus(`Uploading audio part ${part.index + 1}...`);
+              const result = await uploadStorageObject(item);
+              if (!result.ok) {
+                throw new Error(result.message);
+              }
+              streamedPathsForAbort.push(item.path);
+              uploadedAssets.push({
+                path: item.path,
+                bytes: item.bytes,
+                contentType: item.contentType,
+                kind: item.kind,
+              });
+            },
+          });
+        } catch (error) {
+          await abortContentFileUpload(prep.contentItemId, streamedPathsForAbort);
+          setFileError(
+            error instanceof Error
+              ? error.message
+              : "Could not prepare this media file for upload.",
+          );
+          setFileStatus(null);
+          return;
+        }
+      } else {
+        setFileStatus("Uploading...");
+        const item: UploadItem = {
+          file,
+          path: prep.storagePath,
+          bytes: file.size,
+          contentType: file.type || "application/octet-stream",
+          kind: "source_file",
+        };
+        const result = await uploadStorageObject(item);
+        if (!result.ok) {
+          upErr = { message: result.message };
+        } else {
+          uploadedAssets.push({
+            path: item.path,
+            bytes: item.bytes,
+            contentType: item.contentType,
+            kind: item.kind,
+          });
+        }
       }
 
       if (upErr) {
@@ -402,8 +425,9 @@ export function ContentUploadForm() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
             <p className="text-xs text-muted-foreground">
-              PDF and DOCX are extracted instantly. MP4 and MP3 upload directly, then background
-              transcription extracts audio server-side and purges temporary media so only text stays
+              PDF and DOCX are extracted instantly. MP4 is converted into transcript audio in the
+              browser (faster than real time when supported) and uploads as it is produced. MP3
+              uploads directly. Background transcription purges temporary media so only text stays
               in your library.
             </p>
           </div>

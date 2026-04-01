@@ -1,6 +1,14 @@
 "use client";
 
-const RECORDER_TIMESLICE_MS = 30_000;
+/**
+ * Faster-than-real-time extraction: decode + capture while the media element plays
+ * above 1×. Capped to avoid unstable decoders; pitch preservation helps Whisper.
+ */
+const EXTRACTION_PLAYBACK_RATE = 2;
+
+/** Smaller slices → first storage upload starts sooner while capture continues. */
+const RECORDER_TIMESLICE_MS = 15_000;
+
 const PREFERRED_AUDIO_MIME_TYPES = [
   "audio/webm;codecs=opus",
   "audio/webm",
@@ -13,6 +21,21 @@ export type OptimizedMediaAsset = {
   contentType: string;
 };
 
+export type StreamedMediaPart = {
+  index: number;
+  file: File;
+  contentType: string;
+  bytes: number;
+};
+
+export type OptimizeMediaOptions = {
+  /**
+   * When set, each recorded slice is emitted as soon as the browser provides it so the
+   * caller can upload while extraction continues (overlaps network with capture).
+   */
+  onStreamPart?: (part: StreamedMediaPart) => Promise<void>;
+};
+
 export type OptimizedMediaResult = {
   assets: OptimizedMediaAsset[];
   metadata: {
@@ -21,6 +44,9 @@ export type OptimizedMediaResult = {
     target_audio_sample_rate: string;
     segment_duration_seconds: number;
     original_file_size: number;
+    extraction_playback_rate: number;
+    streaming_upload: boolean;
+    streamed_part_count?: number;
   };
 };
 
@@ -69,14 +95,33 @@ function getCaptureStream(element: HTMLMediaElement): MediaStream {
   throw new Error("This browser cannot extract audio from uploaded media files.");
 }
 
+function applyFastPlayback(mediaElement: HTMLMediaElement): number {
+  const rate = Math.min(4, Math.max(1, EXTRACTION_PLAYBACK_RATE));
+  mediaElement.playbackRate = rate;
+  mediaElement.defaultPlaybackRate = rate;
+
+  if (mediaElement instanceof HTMLVideoElement) {
+    const v = mediaElement as HTMLVideoElement & { preservesPitch?: boolean };
+    if ("preservesPitch" in v) {
+      try {
+        v.preservesPitch = true;
+      } catch {
+        /* optional */
+      }
+    }
+  }
+
+  return rate;
+}
+
 export function shouldOptimizeMediaForTranscript(file: File): boolean {
-  void file;
-  return false;
+  return /\.mp4$/i.test(file.name);
 }
 
 export async function optimizeMediaForTranscript(
   file: File,
   onStageChange?: (message: string) => void,
+  options?: OptimizeMediaOptions,
 ): Promise<OptimizedMediaResult> {
   try {
     const mimeType = getSupportedRecorderMimeType();
@@ -84,6 +129,7 @@ export async function optimizeMediaForTranscript(
       throw new Error("This browser does not support local audio capture for media uploads.");
     }
 
+    const onStreamPart = options?.onStreamPart;
     const safeBaseName = sanitizeBaseName(file.name);
     const extension = mimeType.includes("mp4") ? "m4a" : "webm";
     const objectUrl = URL.createObjectURL(file);
@@ -121,7 +167,11 @@ export async function optimizeMediaForTranscript(
       mediaElement.addEventListener("error", onError);
     });
 
-    onStageChange?.("Extracting audio locally for transcript-first upload...");
+    const appliedRate = applyFastPlayback(mediaElement);
+    onStageChange?.(
+      `Extracting audio locally (~${appliedRate}× speed) for transcript-first upload...`,
+    );
+
     const sourceStream = getCaptureStream(mediaElement);
     const audioTracks = sourceStream.getAudioTracks();
     if (audioTracks.length === 0) {
@@ -132,10 +182,47 @@ export async function optimizeMediaForTranscript(
     const recordedChunks: Blob[] = [];
     const recorder = new MediaRecorder(audioStream, { mimeType });
 
+    let streamIndex = 0;
+    let streamTail = Promise.resolve();
+
+    const enqueueStreamPart = (blob: Blob) => {
+      const idx = streamIndex;
+      streamIndex += 1;
+      const outputFile = new File(
+        [blob],
+        `${safeBaseName}.part-${String(idx + 1).padStart(3, "0")}.${extension}`,
+        { type: blob.type || mimeType },
+      );
+      streamTail = streamTail
+        .then(() =>
+          onStreamPart!({
+            index: idx,
+            file: outputFile,
+            contentType: outputFile.type || mimeType,
+            bytes: outputFile.size,
+          }),
+        )
+        .catch((err: unknown) => {
+          try {
+            mediaElement.pause();
+            if (recorder.state !== "inactive") {
+              recorder.stop();
+            }
+          } catch {
+            /* ignore */
+          }
+          throw err;
+        });
+    };
+
     const stopPromise = new Promise<void>((resolve, reject) => {
       recorder.addEventListener("dataavailable", (event) => {
         if (event.data && event.data.size > 0) {
-          recordedChunks.push(event.data);
+          if (onStreamPart) {
+            enqueueStreamPart(event.data);
+          } else {
+            recordedChunks.push(event.data);
+          }
         }
       });
       recorder.addEventListener("stop", () => resolve(), { once: true });
@@ -172,13 +259,39 @@ export async function optimizeMediaForTranscript(
       );
     });
 
-    recorder.start(RECORDER_TIMESLICE_MS);
-    await mediaElement.play();
-    await stopPromise;
-    sourceStream.getTracks().forEach((track) => track.stop());
-    mediaElement.pause();
-    mediaElement.remove();
-    URL.revokeObjectURL(objectUrl);
+    try {
+      recorder.start(RECORDER_TIMESLICE_MS);
+      await mediaElement.play();
+      await stopPromise;
+      if (onStreamPart) {
+        await streamTail;
+      }
+    } finally {
+      sourceStream.getTracks().forEach((track) => track.stop());
+      mediaElement.pause();
+      mediaElement.remove();
+      URL.revokeObjectURL(objectUrl);
+    }
+
+    if (onStreamPart) {
+      if (streamIndex === 0) {
+        throw new Error("No transcript-ready audio chunks were created from this media file.");
+      }
+
+      return {
+        assets: [],
+        metadata: {
+          optimization_strategy: "browser_media_recorder_audio_chunks",
+          target_audio_bitrate: "browser-default",
+          target_audio_sample_rate: "browser-default",
+          segment_duration_seconds: RECORDER_TIMESLICE_MS / 1000,
+          original_file_size: file.size,
+          extraction_playback_rate: appliedRate,
+          streaming_upload: true,
+          streamed_part_count: streamIndex,
+        },
+      };
+    }
 
     if (recordedChunks.length === 0) {
       throw new Error("No transcript-ready audio chunks were created from this media file.");
@@ -215,6 +328,8 @@ export async function optimizeMediaForTranscript(
         target_audio_sample_rate: "browser-default",
         segment_duration_seconds: RECORDER_TIMESLICE_MS / 1000,
         original_file_size: file.size,
+        extraction_playback_rate: appliedRate,
+        streaming_upload: false,
       },
     };
   } catch (error) {
