@@ -4,9 +4,17 @@ import { PageHeader } from "@/components/design/page-header";
 import { EmployeeSlackIntegrationCard } from "@/components/employee/employee-slack-integration-card";
 import { EmployeeTeamsIntegrationCard } from "@/components/employee/employee-teams-integration-card";
 import { getEmployeeSessionProfile } from "@/lib/employee/session-profile";
+import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ slack?: string; reason?: string }> };
+type Props = {
+  searchParams: Promise<{
+    slack?: string;
+    reason?: string;
+    teams?: string;
+    teams_reason?: string;
+  }>;
+};
 
 export default async function EmployeeIntegrationsPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -67,6 +75,9 @@ export default async function EmployeeIntegrationsPage({ searchParams }: Props) 
         <EmployeeTeamsIntegrationCard
           workspaceTeamsConnected={workspaceTeamsConnected}
           employeeTeamsLinked={employeeTeamsLinked}
+          teamsResult={params.teams ?? null}
+          teamsReason={params.teams_reason ?? null}
+          publicAppOrigin={getPublicAppOrigin()}
         />
       </div>
     </div>

@@ -33,3 +33,9 @@ export function teamsMessagesEndpointUrl(): string {
   const o = getPublicAppOrigin();
   return o ? `${o}/api/teams/messages` : "";
 }
+
+/** Employee self-link: opens delegated OAuth, callback at /api/teams/employee/oauth */
+export function teamsEmployeeLinkStartUrl(): string {
+  const o = getPublicAppOrigin();
+  return o ? `${o}/api/teams/employee/install` : "";
+}

@@ -262,7 +262,7 @@ function teamsPushMessage(result: TeamsAssignmentPushResult): string {
     return "Teams is not connected (complete Integrations → Microsoft Teams).";
   }
   if (result.reason === "no_teams_user") {
-    return "This employee has no Teams link — open Integrations → Sync Users, or ask them to message the bot once.";
+    return "No Teams link for this assignee. They should open Employee → Integrations → Link my Teams account (or admin: Integrations → Sync Users if their email matches M365).";
   }
   return result.detail ?? "Teams send failed.";
 }

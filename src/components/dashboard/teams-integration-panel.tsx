@@ -231,7 +231,7 @@ export function TeamsIntegrationPanel({
               <Check className="mr-1.5 inline h-4 w-4" />
               Synced — {syncResult.mapped} user{syncResult.mapped !== 1 ? "s" : ""} matched.{" "}
               {syncResult.mapped === 0
-                ? "No matching emails found. Employees with matching emails will be auto-linked when they message the bot."
+                ? "No Graph email matches. Employees can link in Employee → Integrations → Link my Teams account, message the bot once, or fix email alignment."
                 : "Employees can now receive Teams notifications."}
             </div>
           )}
