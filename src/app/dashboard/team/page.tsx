@@ -11,6 +11,7 @@ import {
   type TeamPerfRow,
 } from "./team-performance-client";
 import { TeamInviteForm } from "./team-invite-form";
+import { BulkInvitePanel } from "@/components/dashboard/bulk-invite-panel";
 
 type SearchParams = Promise<{ from?: string; to?: string }>;
 
@@ -168,6 +169,9 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
         </div>
         <div className="px-6 py-5">
           <TeamInviteForm />
+        </div>
+        <div className="border-t border-border px-6 py-5">
+          <BulkInvitePanel />
         </div>
       </div>
 

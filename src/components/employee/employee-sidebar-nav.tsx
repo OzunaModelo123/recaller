@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Home, Plug } from "lucide-react";
+import { BookOpen, Home, Plug, UserCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -25,6 +25,12 @@ const items = [
     icon: Plug,
     isActive: (p: string) =>
       p === "/employee/integrations" || p.startsWith("/employee/integrations/"),
+  },
+  {
+    href: "/employee/profile",
+    label: "Profile",
+    icon: UserCircle,
+    isActive: (p: string) => p === "/employee/profile",
   },
 ] as const;
 

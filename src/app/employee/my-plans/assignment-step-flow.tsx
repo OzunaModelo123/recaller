@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ProofType } from "@/lib/proof";
 import { evidenceSatisfiesProof } from "@/lib/proof";
 import { ArrowLeft, ChevronDown, ChevronUp, Lock } from "lucide-react";
+import { AddToCalendar } from "@/components/employee/AddToCalendar";
 
 export type EmployeePlanStep = {
   step_number: number;
@@ -202,11 +203,19 @@ export function AssignmentStepFlow({
             <CardTitle className="text-base leading-snug sm:text-lg">
               Step {currentStep.step_number}: {currentStep.title}
             </CardTitle>
-            {currentStep.estimated_minutes != null && (
-              <p className="text-xs text-muted-foreground">
-                About {currentStep.estimated_minutes} min
-              </p>
-            )}
+            <div className="flex items-center gap-3">
+              {currentStep.estimated_minutes != null && (
+                <p className="text-xs text-muted-foreground">
+                  About {currentStep.estimated_minutes} min
+                </p>
+              )}
+              <AddToCalendar
+                stepTitle={currentStep.title}
+                stepInstructions={currentStep.instructions}
+                estimatedMinutes={currentStep.estimated_minutes}
+                sourceVideoUrl={watchUrlForStep(currentStep)}
+              />
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="whitespace-pre-wrap text-sm text-muted-foreground/90">
