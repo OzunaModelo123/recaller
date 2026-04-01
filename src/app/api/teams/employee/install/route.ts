@@ -91,6 +91,12 @@ export async function GET(request: Request) {
   );
   authUrl.searchParams.set("state", state);
   authUrl.searchParams.set("response_mode", "query");
+  // Let users pick the right identity when they have both personal + work Microsoft accounts.
+  authUrl.searchParams.set("prompt", "select_account");
+  const domainHint = process.env.TEAMS_EMPLOYEE_LOGIN_DOMAIN_HINT?.trim();
+  if (domainHint) {
+    authUrl.searchParams.set("domain_hint", domainHint);
+  }
 
   return NextResponse.redirect(authUrl.toString());
 }

@@ -112,6 +112,17 @@ export function EmployeeTeamsIntegrationCard({
               <span className="font-medium text-foreground">Link my Teams account</span> below to
               connect the same account you use in Teams.
             </p>
+            <div className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/90 p-3 text-xs text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/35 dark:text-amber-100">
+              <p className="font-medium text-foreground">Use your work or school Microsoft account</p>
+              <p className="mt-1.5 text-muted-foreground dark:text-amber-200/90">
+                Personal Microsoft accounts (for example @outlook.com or @live.com) cannot sign in
+                here unless your IT team has{" "}
+                <span className="font-medium text-foreground">invited you as a guest</span> to the
+                company directory. Choose the same account you use to open Teams for work. If you see
+                “does not exist in tenant” or error AADSTS50020, you picked a personal account — try
+                “Use another account” or ask your admin to invite your email to Microsoft 365.
+              </p>
+            </div>
           </div>
         </div>
 
