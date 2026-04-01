@@ -26,4 +26,15 @@
 
 **CLI:** GitHub CLI may live at `/tmp/gh_2.89.0_macOS_arm64/bin/gh` on this machine; use `gh` if it is on your `PATH`.
 
-**Status (mirror `recaller-project.mdc`):** Phases 0–5 done; **next Phase 6** (Slack Bot — DM plans, N-step flows, shared completions API with `platform: slack`). Repo: https://github.com/OzunaModelo123/recaller
+**Status (mirror `recaller-project.mdc`):** Phases 0–7 done; **next Phase 8** (NotificationService + Nudges — unified routing, Inngest cron, 72hr suppression, Resend email fallback). Repo: https://github.com/OzunaModelo123/recaller
+
+## Project Instructions
+
+### Things to Remember
+
+Before writing any code:
+
+1. State how you will verify this change works (test, bash command, browser check, etc.)
+2. Write the test or verification step first
+3. Then implement the code
+4. Run verification and iterate until it passes

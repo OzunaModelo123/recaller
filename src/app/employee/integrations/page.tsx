@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/design/page-header";
 import { EmployeeSlackIntegrationCard } from "@/components/employee/employee-slack-integration-card";
-import { TeamsIntegrationPlaceholder } from "@/components/dashboard/teams-integration-placeholder";
+import { EmployeeTeamsIntegrationCard } from "@/components/employee/employee-teams-integration-card";
 import { getEmployeeSessionProfile } from "@/lib/employee/session-profile";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,7 +22,7 @@ export default async function EmployeeIntegrationsPage({ searchParams }: Props) 
 
   const { data: row } = await supabase
     .from("users")
-    .select("slack_employee_linked_at, organisations ( slack_team_id )")
+    .select("slack_employee_linked_at, teams_user_id, organisations ( slack_team_id, teams_tenant_id )")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -33,8 +33,17 @@ export default async function EmployeeIntegrationsPage({ searchParams }: Props) 
       ? (row.organisations as { slack_team_id: string | null }).slack_team_id
       : null;
 
+  const orgTeams =
+    row?.organisations &&
+    typeof row.organisations === "object" &&
+    "teams_tenant_id" in row.organisations
+      ? (row.organisations as { teams_tenant_id: string | null }).teams_tenant_id
+      : null;
+
   const workspaceSlackConnected = !!orgSlack;
   const employeeSlackLinked = row?.slack_employee_linked_at != null;
+  const workspaceTeamsConnected = !!orgTeams;
+  const employeeTeamsLinked = !!row?.teams_user_id;
 
   return (
     <div className="space-y-8">
@@ -44,20 +53,21 @@ export default async function EmployeeIntegrationsPage({ searchParams }: Props) 
         </p>
         <PageHeader
           title="Integrations"
-          subtitle="Link Slack to get training plans in direct messages and complete steps there. This page matches what admins set up under Dashboard → Integrations."
+          subtitle="Link Slack or Teams to get training plans in direct messages and complete steps there."
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="lg:col-span-2">
-          <EmployeeSlackIntegrationCard
-            slackResult={params.slack ?? null}
-            slackReason={params.reason ?? null}
-            workspaceSlackConnected={workspaceSlackConnected}
-            employeeSlackLinked={employeeSlackLinked}
-          />
-        </div>
-        <TeamsIntegrationPlaceholder variant="employee" />
+        <EmployeeSlackIntegrationCard
+          slackResult={params.slack ?? null}
+          slackReason={params.reason ?? null}
+          workspaceSlackConnected={workspaceSlackConnected}
+          employeeSlackLinked={employeeSlackLinked}
+        />
+        <EmployeeTeamsIntegrationCard
+          workspaceTeamsConnected={workspaceTeamsConnected}
+          employeeTeamsLinked={employeeTeamsLinked}
+        />
       </div>
     </div>
   );

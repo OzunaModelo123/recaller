@@ -23,3 +23,13 @@ export function slackOAuthRedirectUrl(): string {
   const o = getPublicAppOrigin();
   return o ? `${o}/api/slack/oauth` : "";
 }
+
+export function teamsOAuthStartUrl(): string {
+  const o = getPublicAppOrigin();
+  return o ? `${o}/api/teams/install` : "";
+}
+
+export function teamsMessagesEndpointUrl(): string {
+  const o = getPublicAppOrigin();
+  return o ? `${o}/api/teams/messages` : "";
+}

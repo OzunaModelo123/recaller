@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { loadAdminIntegrationsForUser } from "@/lib/dashboard/load-admin-integrations";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ slack?: string; reason?: string }> };
+type Props = {
+  searchParams: Promise<{
+    slack?: string;
+    reason?: string;
+    teams?: string;
+  }>;
+};
 
 export default async function DashboardIntegrationsPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -26,7 +32,7 @@ export default async function DashboardIntegrationsPage({ searchParams }: Props)
       <div className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
         <PageHeader
           title="Integrations"
-          subtitle="Connect Slack for your workspace. Employees link their own Slack accounts from Employee → Integrations. Same features here and under Settings."
+          subtitle="Connect Slack and Microsoft Teams for your workspace. Employees link their own accounts from Employee → Integrations."
         />
         <Button variant="outline" size="sm" asChild className="shrink-0">
           <Link href="/dashboard/settings">
@@ -40,6 +46,8 @@ export default async function DashboardIntegrationsPage({ searchParams }: Props)
         data={data}
         slackResult={params.slack ?? null}
         slackReason={params.reason ?? null}
+        teamsResult={params.teams ?? null}
+        teamsReason={params.reason ?? null}
       />
     </div>
   );

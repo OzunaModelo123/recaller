@@ -1,15 +1,23 @@
 import { SlackIntegrationPanel } from "@/components/dashboard/slack-integration-panel";
-import { TeamsIntegrationPlaceholder } from "@/components/dashboard/teams-integration-placeholder";
+import { TeamsIntegrationPanel } from "@/components/dashboard/teams-integration-panel";
 import type { AdminIntegrationsLoad } from "@/lib/dashboard/load-admin-integrations";
 
 type Props = {
   data: AdminIntegrationsLoad;
   slackResult: string | null;
   slackReason: string | null;
+  teamsResult: string | null;
+  teamsReason: string | null;
 };
 
 /** Slack + Teams cards for admin Integrations hub (Settings and /dashboard/integrations). */
-export function AdminIntegrationsGrid({ data, slackResult, slackReason }: Props) {
+export function AdminIntegrationsGrid({
+  data,
+  slackResult,
+  slackReason,
+  teamsResult,
+  teamsReason,
+}: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <SlackIntegrationPanel
@@ -23,7 +31,15 @@ export function AdminIntegrationsGrid({ data, slackResult, slackReason }: Props)
         slackOAuthRedirectUrl={data.slackOAuthRedirectUrl}
         publicAppOrigin={data.publicAppOrigin}
       />
-      <TeamsIntegrationPlaceholder variant="admin" />
+      <TeamsIntegrationPanel
+        connected={data.teamsConnected}
+        tenantId={data.teamsTenantId}
+        mappedUsers={data.teamsMappedUsers}
+        teamsResult={teamsResult}
+        teamsReason={teamsReason}
+        teamsOAuthUrl={data.teamsOAuthUrl}
+        publicAppOrigin={data.publicAppOrigin}
+      />
     </div>
   );
 }

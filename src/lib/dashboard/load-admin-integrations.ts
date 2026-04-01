@@ -3,6 +3,7 @@ import {
   getPublicAppOrigin,
   slackEventsRequestUrl,
   slackOAuthRedirectUrl,
+  teamsOAuthStartUrl,
 } from "@/lib/public-app-url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -16,6 +17,10 @@ export type AdminIntegrationsLoad = {
   slackOAuthRedirectUrl: string;
   publicAppOrigin: string;
   slackAdminChannelId: string | null;
+  teamsConnected: boolean;
+  teamsTenantId: string | null;
+  teamsMappedUsers: number;
+  teamsOAuthUrl: string;
 };
 
 export async function loadAdminIntegrationsForUser(
@@ -35,7 +40,7 @@ export async function loadAdminIntegrationsForUser(
 
   const { data: org } = await supabase
     .from("organisations")
-    .select("org_context, slack_team_id, slack_admin_channel_id")
+    .select("org_context, slack_team_id, slack_admin_channel_id, teams_tenant_id")
     .eq("id", profile.org_id)
     .maybeSingle();
 
@@ -50,6 +55,17 @@ export async function loadAdminIntegrationsForUser(
     mappedUsers = count ?? 0;
   }
 
+  const teamsConnected = !!org?.teams_tenant_id;
+  let teamsMappedUsers = 0;
+  if (teamsConnected) {
+    const { count } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", profile.org_id)
+      .not("teams_user_id", "is", null);
+    teamsMappedUsers = count ?? 0;
+  }
+
   return {
     isAdmin: true,
     initialOrgContext: parseOrgContext(org?.org_context),
@@ -60,5 +76,9 @@ export async function loadAdminIntegrationsForUser(
     slackOAuthRedirectUrl: slackOAuthRedirectUrl(),
     publicAppOrigin: getPublicAppOrigin(),
     slackAdminChannelId: org?.slack_admin_channel_id ?? null,
+    teamsConnected,
+    teamsTenantId: org?.teams_tenant_id ?? null,
+    teamsMappedUsers,
+    teamsOAuthUrl: teamsOAuthStartUrl(),
   };
 }

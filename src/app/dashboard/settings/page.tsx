@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { loadAdminIntegrationsForUser } from "@/lib/dashboard/load-admin-integrations";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ slack?: string; reason?: string }> };
+type Props = {
+  searchParams: Promise<{ slack?: string; reason?: string; teams?: string }>;
+};
 
 export default async function SettingsPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -60,6 +62,8 @@ export default async function SettingsPage({ searchParams }: Props) {
             data={integrationsData}
             slackResult={params.slack ?? null}
             slackReason={params.reason ?? null}
+            teamsResult={params.teams ?? null}
+            teamsReason={params.reason ?? null}
           />
         </div>
       ) : null}

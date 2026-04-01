@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { notifySlackAssignmentOnCreate } from "@/lib/notifications/notify-employee-slack-assignment";
+import { notifyTeamsAssignmentOnCreate } from "@/lib/notifications/notify-employee-teams-assignment";
 import { createClient } from "@/lib/supabase/server";
 
 async function requireOrgAdmin() {
@@ -140,13 +141,18 @@ export async function createAssignmentsAction(input: {
 
   if (createdRows?.length) {
     await Promise.allSettled(
-      createdRows.map((row) =>
+      createdRows.flatMap((row) => [
         notifySlackAssignmentOnCreate({
           orgId: ctx.orgId!,
           assignmentId: row.id,
           assigneeUserId: row.assigned_to,
         }),
-      ),
+        notifyTeamsAssignmentOnCreate({
+          orgId: ctx.orgId!,
+          assignmentId: row.id,
+          assigneeUserId: row.assigned_to,
+        }),
+      ]),
     );
   }
 
@@ -225,11 +231,18 @@ export async function assignPlanToEmployeeAction(input: {
   if (error) return { ok: false as const, error: error.message };
 
   if (created) {
-    await notifySlackAssignmentOnCreate({
-      orgId: ctx.orgId,
-      assignmentId: created.id,
-      assigneeUserId: created.assigned_to,
-    });
+    await Promise.allSettled([
+      notifySlackAssignmentOnCreate({
+        orgId: ctx.orgId,
+        assignmentId: created.id,
+        assigneeUserId: created.assigned_to,
+      }),
+      notifyTeamsAssignmentOnCreate({
+        orgId: ctx.orgId,
+        assignmentId: created.id,
+        assigneeUserId: created.assigned_to,
+      }),
+    ]);
   }
 
   revalidatePath(`/dashboard/plans/${planId}`);
