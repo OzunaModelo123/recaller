@@ -20,6 +20,21 @@ type UploadedMediaAsset = {
   kind?: string;
 };
 
+export function canTranscribeUploadedAssetDirectly(asset: UploadedMediaAsset): boolean {
+  const lowerPath = asset.path.toLowerCase();
+  const normalizedType = asset.contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
+
+  if (lowerPath.endsWith(".mp3") || lowerPath.endsWith(".mpeg") || lowerPath.endsWith(".mpga")) {
+    return true;
+  }
+
+  if (lowerPath.endsWith(".m4a") || lowerPath.endsWith(".mp4") || lowerPath.endsWith(".wav")) {
+    return true;
+  }
+
+  return normalizedType === "audio/mpeg" || normalizedType === "audio/mp4" || normalizedType === "audio/wav";
+}
+
 function guessMimeAndName(filePath: string): { basename: string; mime: string } {
   const basename = filePath.split("/").pop() || "media.bin";
   const lower = basename.toLowerCase();
@@ -286,13 +301,6 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
   await admin.from("content_items").update({ status: "transcribing" }).eq("id", contentItemId);
 
   try {
-    const { data: blob, error: downloadError } = await admin.storage
-      .from("content-files")
-      .download(item.file_path);
-    if (downloadError || !blob) {
-      throw new Error(downloadError?.message ?? "Storage download failed");
-    }
-
     const openai = new OpenAI({ apiKey });
     const uploadedAssets = readUploadedAssets(item.metadata);
 
@@ -312,21 +320,18 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
         }
 
         const assetBuffer = Buffer.from(await assetBlob.arrayBuffer());
+        const assetName =
+          asset.path.split("/").pop() || `segment-${String(index + 1).padStart(3, "0")}.bin`;
         const assetText =
-          assetBuffer.byteLength <= OPENAI_TRANSCRIPTION_MAX_BYTES
+          assetBuffer.byteLength <= OPENAI_TRANSCRIPTION_MAX_BYTES &&
+          canTranscribeUploadedAssetDirectly(asset)
             ? await transcribeAudioBuffer(
                 openai,
                 assetBuffer,
-                `segment-${String(index + 1).padStart(3, "0")}.mp3`,
-                asset.contentType || "audio/mpeg",
+                assetName,
+                asset.contentType?.split(";")[0]?.trim() || guessMimeAndName(assetName).mime,
               )
-            : (
-                await transcribeMediaBuffer(
-                  openai,
-                  assetBuffer,
-                  asset.path.split("/").pop() || `segment-${index + 1}.mp3`,
-                )
-              ).text;
+            : (await transcribeMediaBuffer(openai, assetBuffer, assetName)).text;
 
         if (assetText) {
           transcriptParts.push(assetText);
@@ -339,6 +344,13 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
         throw new Error("Whisper returned empty text");
       }
     } else {
+      const { data: blob, error: downloadError } = await admin.storage
+        .from("content-files")
+        .download(item.file_path);
+      if (downloadError || !blob) {
+        throw new Error(downloadError?.message ?? "Storage download failed");
+      }
+
       const buffer = Buffer.from(await blob.arrayBuffer());
       const { basename } = guessMimeAndName(item.file_path);
       const result = await transcribeMediaBuffer(openai, buffer, basename);

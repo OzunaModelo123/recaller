@@ -70,7 +70,8 @@ function getCaptureStream(element: HTMLMediaElement): MediaStream {
 }
 
 export function shouldOptimizeMediaForTranscript(file: File): boolean {
-  return /\.(mp4|mp3)$/i.test(file.name);
+  void file;
+  return false;
 }
 
 export async function optimizeMediaForTranscript(

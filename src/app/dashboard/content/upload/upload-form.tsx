@@ -402,8 +402,9 @@ export function ContentUploadForm() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
             <p className="text-xs text-muted-foreground">
-              PDF and DOCX are extracted instantly. MP4 and MP3 are converted into transcript-ready
-              audio, transcribed, and purged so only text stays in your library.
+              PDF and DOCX are extracted instantly. MP4 and MP3 upload directly, then background
+              transcription extracts audio server-side and purges temporary media so only text stays
+              in your library.
             </p>
           </div>
         </div>
