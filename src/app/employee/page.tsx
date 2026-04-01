@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  CalendarCheck,
   ClipboardList,
   ListChecks,
   Plug,
@@ -12,6 +13,7 @@ import {
 import { EmptyState } from "@/components/design/empty-state";
 import { HeroPanelCta } from "@/components/design/hero-panel-cta";
 import { StatCard } from "@/components/design/stat-card";
+import { EmployeeWorkflowStrip } from "@/components/employee/employee-workflow-strip";
 import { TimeOfDayGreeting } from "@/components/employee/time-of-day-greeting";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,22 @@ export default async function EmployeeHomePage() {
   const completed = summaries.filter((s) => s.label === "Completed");
   const overdue = active.filter((s) => s.label === "Overdue");
   const preview = summaries.slice(0, 4);
+
+  const { data: myAssignmentRows } = await supabase
+    .from("assignments")
+    .select("id")
+    .eq("assigned_to", user.id);
+  const myAssignmentIds = (myAssignmentRows ?? []).map((r) => r.id);
+  const weekAgoIso = new Date(Date.now() - 7 * 86400000).toISOString();
+  let stepsCompletedThisWeek = 0;
+  if (myAssignmentIds.length > 0) {
+    const { count } = await supabase
+      .from("step_completions")
+      .select("id", { count: "exact", head: true })
+      .in("assignment_id", myAssignmentIds)
+      .gte("completed_at", weekAgoIso);
+    stepsCompletedThisWeek = count ?? 0;
+  }
 
   return (
     <div className="space-y-10 pb-8">
@@ -107,11 +125,20 @@ export default async function EmployeeHomePage() {
               <Plug className="h-4 w-4 shrink-0 opacity-90" />
               Integrations
             </Link>
+            <Link
+              href="/employee/profile"
+              className="inline-flex h-11 items-center gap-2 rounded-lg border border-sidebar-border/90 bg-transparent px-5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              Profile
+              <ArrowRight className="h-4 w-4 shrink-0 opacity-90" />
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <EmployeeWorkflowStrip />
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           icon={<ClipboardList className="h-5 w-5" />}
           value={String(active.length)}
@@ -126,6 +153,11 @@ export default async function EmployeeHomePage() {
           icon={<ListChecks className="h-5 w-5" />}
           value={String(overdue.length)}
           label="Overdue"
+        />
+        <StatCard
+          icon={<CalendarCheck className="h-5 w-5" />}
+          value={String(stepsCompletedThisWeek)}
+          label="Steps done (7 days)"
         />
         <StatCard
           icon={<BookOpen className="h-5 w-5" />}

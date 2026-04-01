@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Check, CloudUpload, Link2, Loader2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { ingestContentFile, ingestContentUrl } from "@/app/dashboard/content/actions";
+import {
+  abortContentFileUpload,
+  finalizeContentFileUpload,
+  ingestContentUrl,
+  prepareContentFileUpload,
+} from "@/app/dashboard/content/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,10 +88,34 @@ export function ContentUploadForm() {
   const handleFile = useCallback((file: File) => {
     setFileError(null);
     setLastSuccessId(null);
-    const fd = new FormData();
-    fd.set("file", file);
     startFile(async () => {
-      const result = await ingestContentFile(fd);
+      const prep = await prepareContentFileUpload(file.name, file.size);
+      if (!prep.ok) {
+        setFileError(prep.error);
+        return;
+      }
+
+      const supabase = createClient();
+      const { error: upErr } = await supabase.storage
+        .from("content-files")
+        .upload(prep.storagePath, file, {
+          contentType: file.type || undefined,
+          upsert: false,
+        });
+
+      if (upErr) {
+        await abortContentFileUpload(prep.contentItemId);
+        if (/size|too large|413/i.test(upErr.message)) {
+          setFileError(
+            "Upload rejected (size limit). Supabase caps files per bucket settings; use a smaller file or raise the bucket limit.",
+          );
+        } else {
+          setFileError(upErr.message || "Upload to storage failed.");
+        }
+        return;
+      }
+
+      const result = await finalizeContentFileUpload(prep.contentItemId);
       if (!result.ok) {
         setFileError(result.error);
         return;
@@ -235,7 +264,8 @@ export function ContentUploadForm() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Upload a file</h2>
             <p className="text-xs text-muted-foreground">
-              PDF, DOCX (instant), or MP4/MP3 (Whisper via Inngest). Max 500 MB.
+              PDF, DOCX (instant), or MP4/MP3 (Whisper via Inngest). Max 500 MB. Original
+              files are removed after text is extracted; only transcripts stay in your library.
             </p>
           </div>
         </div>

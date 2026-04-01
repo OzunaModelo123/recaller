@@ -12,8 +12,11 @@ import {
   ClipboardList,
   AlertCircle,
   UserCircle,
+  CalendarCheck,
+  LayoutList,
 } from "lucide-react";
 
+import { DashboardWorkflowStrip } from "@/components/dashboard/dashboard-workflow-strip";
 import { HeroPanelCta } from "@/components/design/hero-panel-cta";
 import {
   completionPercent,
@@ -21,6 +24,7 @@ import {
   trafficDotClass,
   trafficTier,
 } from "@/lib/dashboard/evidence-summary";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { unwrapRelation } from "@/lib/supabase/unwrap-relation";
 import type { Json } from "@/types/database";
@@ -96,6 +100,7 @@ export default async function DashboardPage() {
   let orgId: string | null = null;
   let contentCountLabel = "0";
   let teamCountLabel = "0";
+  let plansCountLabel = "0";
 
   if (user) {
     const { data: profile } = await supabase
@@ -121,18 +126,24 @@ export default async function DashboardPage() {
   const isAdmin = role === "admin" || role === "super_admin";
 
   if (isAdmin && orgId) {
-    const [{ count: contentCount }, { count: teamCount }] = await Promise.all([
-      supabase
-        .from("content_items")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId),
-      supabase
-        .from("users")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId),
-    ]);
+    const [{ count: contentCount }, { count: teamCount }, { count: plansCount }] =
+      await Promise.all([
+        supabase
+          .from("content_items")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId),
+        supabase
+          .from("users")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId),
+        supabase
+          .from("plans")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId),
+      ]);
     contentCountLabel = String(contentCount ?? 0);
     teamCountLabel = String(teamCount ?? 0);
+    plansCountLabel = String(plansCount ?? 0);
   }
 
   const greeting = getGreeting();
@@ -142,6 +153,8 @@ export default async function DashboardPage() {
   let overallPct = 0;
   let employeesEngaged = 0;
   let overdueCount = 0;
+  let completionsLast7d = 0;
+  let activeAssignmentsCount = 0;
   let recentFeed: {
     when: string;
     who: string;
@@ -249,6 +262,13 @@ export default async function DashboardPage() {
 
     const completed = allStepCompletions.length;
     overallPct = completionPercent(completed, expected);
+
+    const weekAgoIso = new Date(Date.now() - 7 * 86400000).toISOString();
+    completionsLast7d = allStepCompletions.filter(
+      (c) => c.completed_at >= weekAgoIso,
+    ).length;
+    activeAssignmentsCount = (assignments ?? []).filter((a) => a.status === "active")
+      .length;
 
     const engaged = new Set<string>();
     for (const c of allStepCompletions) {
@@ -391,52 +411,89 @@ export default async function DashboardPage() {
           </p>
           {isAdmin && (
             <p className="mt-2 text-xs text-sidebar-foreground/55">
-              Library: {contentCountLabel} items · Roster: {teamCountLabel} people
+              Library: {contentCountLabel} items · {plansCountLabel} plans · Roster:{" "}
+              {teamCountLabel} people
             </p>
           )}
           {isAdmin && (
-            <HeroPanelCta
-              href="/dashboard/content/upload"
-              className="mt-6"
-            >
-              Upload content
-              <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
-            </HeroPanelCta>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <HeroPanelCta href="/dashboard/content/upload" className="inline-flex">
+                Upload content
+                <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
+              </HeroPanelCta>
+              <Link
+                href="/dashboard/assignments"
+                className="inline-flex h-11 items-center gap-2 rounded-lg border border-sidebar-border/90 bg-transparent px-5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              >
+                Manage assignments
+                <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
+              </Link>
+              <Link
+                href="/dashboard/insights"
+                className="inline-flex h-11 items-center gap-2 rounded-lg border border-sidebar-border/90 bg-transparent px-5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              >
+                View analytics
+                <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
+              </Link>
+            </div>
           )}
         </div>
       </div>
 
+      {isAdmin && orgId ? <DashboardWorkflowStrip /> : null}
+
       {isAdmin && orgId ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              label: "Active plans",
-              value: String(totalActivePlans),
-              hint: "Plans with at least one active assignment",
-              icon: ClipboardList,
-            },
-            {
-              label: "Overall completion",
-              value: `${overallPct}%`,
-              hint: "Steps done ÷ expected steps (per-plan N)",
-              icon: TrendingUp,
-            },
-            {
-              label: "Employees engaged",
-              value: String(employeesEngaged),
-              hint: "People with ≥1 completed step",
-              icon: Users,
-            },
-            {
-              label: "Overdue assignments",
-              value: String(overdueCount),
-              hint: "Active & past due date",
-              icon: AlertCircle,
-            },
-          ].map((stat) => (
-            <div
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(
+            [
+              {
+                label: "Active plans",
+                value: String(totalActivePlans),
+                hint: "Plans with at least one active assignment",
+                icon: ClipboardList,
+                href: "/dashboard/plans",
+              },
+              {
+                label: "Active assignments",
+                value: String(activeAssignmentsCount),
+                hint: "Rows in progress (not cancelled)",
+                icon: LayoutList,
+                href: "/dashboard/assignments",
+              },
+              {
+                label: "Overall completion",
+                value: `${overallPct}%`,
+                hint: "Steps done ÷ expected steps (per-plan N)",
+                icon: TrendingUp,
+                href: "/dashboard/assignments",
+              },
+              {
+                label: "Step completions (7d)",
+                value: String(completionsLast7d),
+                hint: "Finished steps in the last week",
+                icon: CalendarCheck,
+                href: "/dashboard/insights",
+              },
+              {
+                label: "Employees engaged",
+                value: String(employeesEngaged),
+                hint: "People with ≥1 completed step",
+                icon: Users,
+                href: "/dashboard/team",
+              },
+              {
+                label: "Overdue assignments",
+                value: String(overdueCount),
+                hint: "Active & past due date",
+                icon: AlertCircle,
+                href: "/dashboard/assignments",
+              },
+            ] as const
+          ).map((stat) => (
+            <Link
               key={stat.label}
-              className="group rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5"
+              href={stat.href}
+              className="group block rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 hover:border-primary/20"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -447,12 +504,16 @@ export default async function DashboardPage() {
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80">
                     {stat.hint}
                   </p>
+                  <p className="mt-2 text-[11px] font-medium text-muted-foreground transition-colors group-hover:text-primary">
+                    Open
+                    <ArrowUpRight className="ml-0.5 inline h-3 w-3 align-middle" />
+                  </p>
                 </div>
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
                   <stat.icon className="h-5 w-5 text-primary" />
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       ) : (
@@ -596,13 +657,18 @@ export default async function DashboardPage() {
 
       {isAdmin && (
         <div className="space-y-5">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">
-              Get started
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Three steps to transform your training workflow.
-            </p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Get started
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Three steps to transform your training workflow.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="rounded-lg" asChild>
+              <Link href="/dashboard/onboarding/context">Company context</Link>
+            </Button>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {steps.map((step) => (
@@ -640,11 +706,16 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Activity className="h-4 w-4 text-primary" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Activity className="h-4 w-4 text-primary" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
             </div>
-            <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" asChild>
+              <Link href="/dashboard/assignments">Assignments</Link>
+            </Button>
           </div>
           {isAdmin && orgId && recentFeed.length > 0 ? (
             <ul className="mt-4 space-y-3 text-sm">
@@ -683,9 +754,20 @@ export default async function DashboardPage() {
             <h3 className="text-sm font-semibold text-foreground">AI Insights</h3>
           </div>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            After 30 days of data, Recaller generates AI-powered insights about your
-            team&apos;s learning patterns and performance.
+            Charts for velocity, drop-off, and top performers — plus monthly AI reports when
+            you have enough activity.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" className="rounded-lg" asChild>
+              <Link href="/dashboard/insights">
+                Open insights
+                <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-lg" asChild>
+              <Link href="/dashboard/team">Team performance</Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LogOut, Menu } from "lucide-react";
 
 import { EmployeeSidebarNav } from "@/components/employee/employee-sidebar-nav";
+import { EmployeeTopBar } from "@/components/employee/employee-top-bar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,6 +95,7 @@ export default async function EmployeeLayout({
       </aside>
 
       <div className="flex flex-1 flex-col">
+        <EmployeeTopBar orgName={profile.orgName} />
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-4 py-3 backdrop-blur-xl md:hidden">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Sheet>

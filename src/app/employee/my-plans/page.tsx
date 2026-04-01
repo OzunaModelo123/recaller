@@ -57,19 +57,23 @@ export default async function MyPlansPage({ searchParams }: Props) {
           action={
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <Link
+                href="/employee"
+                className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Home
+              </Link>
+              <Link
+                href="/employee/profile"
+                className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Profile
+              </Link>
+              <Link
                 href="/employee/integrations"
-                className="font-medium text-primary hover:text-primary/80 transition-colors"
+                className="font-medium text-primary transition-colors hover:text-primary/80"
               >
                 Integrations
               </Link>
-              {sorted.length === 0 ? (
-                <Link
-                  href="/employee"
-                  className="font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Home
-                </Link>
-              ) : null}
             </div>
           }
         />

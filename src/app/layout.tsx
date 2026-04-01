@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppAnalytics } from "@/components/analytics/app-analytics";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,6 +33,7 @@ export default function RootLayout({
         className={`min-h-full flex flex-col ${geistSans.className}`}
       >
         {children}
+        <AppAnalytics />
       </body>
     </html>
   );

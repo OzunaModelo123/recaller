@@ -20,17 +20,17 @@ const items = [
     isActive: (p: string) => p.startsWith("/employee/my-plans"),
   },
   {
+    href: "/employee/profile",
+    label: "Profile",
+    icon: UserCircle,
+    isActive: (p: string) => p === "/employee/profile",
+  },
+  {
     href: "/employee/integrations",
     label: "Integrations",
     icon: Plug,
     isActive: (p: string) =>
       p === "/employee/integrations" || p.startsWith("/employee/integrations/"),
-  },
-  {
-    href: "/employee/profile",
-    label: "Profile",
-    icon: UserCircle,
-    isActive: (p: string) => p === "/employee/profile",
   },
 ] as const;
 

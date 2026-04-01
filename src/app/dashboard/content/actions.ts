@@ -179,25 +179,34 @@ export async function ingestContentUrl(url: string): Promise<IngestResult> {
   }
 }
 
-export async function ingestContentFile(formData: FormData): Promise<IngestResult> {
+export type PrepareUploadResult =
+  | { ok: true; contentItemId: string; storagePath: string }
+  | { ok: false; error: string };
+
+/**
+ * Creates the content_items row and returns the storage path. The browser uploads the file
+ * directly to Supabase Storage so we stay under Next.js / Vercel Server Action body limits.
+ */
+export async function prepareContentFileUpload(
+  fileName: string,
+  fileSize: number,
+): Promise<PrepareUploadResult> {
   const ctx = await requireAdminOrg();
   if (!ctx.ok) {
     return { ok: false, error: ctx.error };
   }
   const { supabase, userId, orgId } = ctx;
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
+  if (!fileName.trim() || fileSize === 0) {
     return { ok: false, error: "Choose a file to upload." };
   }
-  if (file.size > MAX_FILE_BYTES) {
+  if (fileSize > MAX_FILE_BYTES) {
     return { ok: false, error: "File is larger than 500MB." };
   }
 
-  const name = file.name || "upload";
+  const name = fileName.trim() || "upload";
   const lower = name.toLowerCase();
   let sourceType: string;
-  let needsWhisper = false;
 
   if (lower.endsWith(".pdf")) {
     sourceType = "pdf";
@@ -205,47 +214,13 @@ export async function ingestContentFile(formData: FormData): Promise<IngestResul
     sourceType = "docx";
   } else if (lower.endsWith(".mp4")) {
     sourceType = "mp4";
-    needsWhisper = true;
   } else if (lower.endsWith(".mp3")) {
     sourceType = "mp3";
-    needsWhisper = true;
   } else {
     return {
       ok: false,
       error: "Unsupported file type. Use MP4, MP3, PDF, or DOCX.",
     };
-  }
-
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  if (!needsWhisper) {
-    try {
-      const transcript =
-        sourceType === "pdf" ? await extractPdfText(buffer) : await extractDocxText(buffer);
-      const { data: row, error } = await supabase
-        .from("content_items")
-        .insert({
-          org_id: orgId,
-          uploaded_by: userId,
-          title: name.replace(/\.[^.]+$/, "") || name,
-          source_type: sourceType,
-          source_url: null,
-          file_path: null,
-          transcript,
-          status: "ready",
-          metadata: { original_filename: name },
-        })
-        .select("id")
-        .single();
-      if (error) {
-        return { ok: false, error: error.message };
-      }
-      revalidatePath("/dashboard/content");
-      return { ok: true, contentItemId: row!.id, pollStatus: false };
-    } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e) };
-    }
   }
 
   const { data: row, error: insErr } = await supabase
@@ -271,56 +246,134 @@ export async function ingestContentFile(formData: FormData): Promise<IngestResul
   const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
   const storagePath = `${orgId}/${row.id}/${safeName}`;
 
-  const { error: upErr } = await supabase.storage.from("content-files").upload(storagePath, buffer, {
-    contentType: file.type || undefined,
-    upsert: false,
-  });
+  return { ok: true, contentItemId: row.id, storagePath };
+}
 
-  if (upErr) {
-    await supabase.from("content_items").delete().eq("id", row.id);
-    if (/size|too large|413/i.test(upErr.message)) {
+export async function abortContentFileUpload(contentItemId: string): Promise<{ ok: boolean }> {
+  const ctx = await requireAdminOrg();
+  if (!ctx.ok) {
+    return { ok: false };
+  }
+  const { supabase, orgId } = ctx;
+
+  const { data: row } = await supabase
+    .from("content_items")
+    .select("org_id, metadata")
+    .eq("id", contentItemId)
+    .maybeSingle();
+
+  if (!row || row.org_id !== orgId) {
+    return { ok: false };
+  }
+
+  const name =
+    (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
+  const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
+  const storagePath = `${orgId}/${contentItemId}/${safeName}`;
+  await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+  await supabase.from("content_items").delete().eq("id", contentItemId);
+  return { ok: true };
+}
+
+export async function finalizeContentFileUpload(contentItemId: string): Promise<IngestResult> {
+  const ctx = await requireAdminOrg();
+  if (!ctx.ok) {
+    return { ok: false, error: ctx.error };
+  }
+  const { supabase, orgId } = ctx;
+
+  const { data: row, error: fetchErr } = await supabase
+    .from("content_items")
+    .select("id, org_id, source_type, metadata, status, transcript")
+    .eq("id", contentItemId)
+    .single();
+
+  if (fetchErr || !row || row.org_id !== orgId) {
+    return { ok: false, error: "Content item not found." };
+  }
+
+  const name =
+    (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
+  const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
+  const storagePath = `${orgId}/${contentItemId}/${safeName}`;
+
+  const { data: blob, error: dlErr } = await supabase.storage.from("content-files").download(storagePath);
+  if (dlErr || !blob) {
+    return { ok: false, error: dlErr?.message ?? "Uploaded file not found in storage." };
+  }
+
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  const sourceType = row.source_type;
+
+  if (sourceType === "pdf" || sourceType === "docx") {
+    try {
+      const transcript =
+        sourceType === "pdf" ? await extractPdfText(buffer) : await extractDocxText(buffer);
+      await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+      const { error: upErr } = await supabase
+        .from("content_items")
+        .update({ transcript, status: "ready", file_path: null })
+        .eq("id", contentItemId);
+      if (upErr) {
+        return { ok: false, error: upErr.message };
+      }
+      revalidatePath("/dashboard/content");
+      return { ok: true, contentItemId, pollStatus: false };
+    } catch (e) {
+      await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+      await supabase.from("content_items").delete().eq("id", contentItemId);
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  if (sourceType === "mp4" || sourceType === "mp3") {
+    const { error: upRowErr } = await supabase
+      .from("content_items")
+      .update({ file_path: storagePath })
+      .eq("id", contentItemId);
+
+    if (upRowErr) {
+      await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+      await supabase.from("content_items").delete().eq("id", contentItemId);
+      return { ok: false, error: upRowErr.message };
+    }
+
+    const meta = row.metadata;
+    const baseMeta =
+      meta && typeof meta === "object" && !Array.isArray(meta)
+        ? (meta as Record<string, unknown>)
+        : {};
+
+    try {
+      await inngest.send({
+        name: "content/transcribe.requested",
+        data: { contentItemId },
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("[ingest] inngest.send failed", e);
+      await supabase
+        .from("content_items")
+        .update({
+          status: "failed",
+          metadata: {
+            ...baseMeta,
+            error: `Transcription job could not be queued: ${message}`,
+          },
+        })
+        .eq("id", contentItemId);
       return {
         ok: false,
         error:
-          "Upload rejected (size limit). Supabase free tier caps files around 50MB; upgrade storage or use a smaller file.",
+          "Upload succeeded, but background transcription could not be started. Check Inngest configuration and try again.",
       };
     }
-    return { ok: false, error: upErr.message || "Upload to storage failed." };
+
+    revalidatePath("/dashboard/content");
+    return { ok: true, contentItemId, pollStatus: true };
   }
 
-  const { error: upRowErr } = await supabase
-    .from("content_items")
-    .update({ file_path: storagePath })
-    .eq("id", row.id);
-
-  if (upRowErr) {
-    await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
-    await supabase.from("content_items").delete().eq("id", row.id);
-    return { ok: false, error: upRowErr.message };
-  }
-
-  try {
-    await inngest.send({
-      name: "content/transcribe.requested",
-      data: { contentItemId: row.id },
-    });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    console.error("[ingest] inngest.send failed", e);
-    await supabase
-      .from("content_items")
-      .update({
-        status: "failed",
-        metadata: { original_filename: name, error: `Transcription job could not be queued: ${message}` },
-      })
-      .eq("id", row.id);
-    return {
-      ok: false,
-      error:
-        "Upload succeeded, but background transcription could not be started. Check Inngest configuration and try again.",
-    };
-  }
-
-  revalidatePath("/dashboard/content");
-  return { ok: true, contentItemId: row.id, pollStatus: true };
+  await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+  await supabase.from("content_items").delete().eq("id", contentItemId);
+  return { ok: false, error: "Unexpected content type." };
 }

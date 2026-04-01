@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
+import { purgeContentSourceFile } from "@/lib/content/purgeContentSourceFile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { inngest } from "@/lib/inngest/client";
 
@@ -106,6 +107,11 @@ export const transcribeContent = inngest.createFunction(
           .eq("id", contentItemId);
         throw e;
       }
+    });
+
+    await step.run("remove-source-media", async () => {
+      const admin = createAdminClient();
+      await purgeContentSourceFile(admin, contentItemId, { throwOnStorageError: true });
     });
   },
 );

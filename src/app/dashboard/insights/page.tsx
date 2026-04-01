@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText, Calendar, Sparkles } from "lucide-react";
+import { ArrowLeft, ClipboardList, FileText, Calendar, Sparkles, Users } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { loadInsightReports, loadLiveAnalytics } from "@/lib/dashboard/load-insights";
 import { InsightsCharts } from "@/components/dashboard/insights-charts";
@@ -33,16 +35,38 @@ export default async function InsightsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          Insights
-        </h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          AI-powered analytics and reports on team training performance.
-          <span className="ml-2 text-xs text-muted-foreground/70">
-            {analytics.periodLabel}
-          </span>
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            Insights
+          </h1>
+          <p className="mt-2 text-base text-muted-foreground">
+            AI-powered analytics and reports on team training performance.
+            <span className="ml-2 text-xs text-muted-foreground/70">
+              {analytics.periodLabel}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="rounded-lg" asChild>
+            <Link href="/dashboard">
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Overview
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="rounded-lg" asChild>
+            <Link href="/dashboard/assignments">
+              <ClipboardList className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Assignments
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="rounded-lg" asChild>
+            <Link href="/dashboard/team">
+              <Users className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Team
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {hasData ? (

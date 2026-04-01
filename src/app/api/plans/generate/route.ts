@@ -10,6 +10,7 @@ import { orgContextIsEmpty, parseOrgContext } from "@/lib/ai/orgContext";
 import { generatePlan } from "@/lib/ai/planGenerator";
 import { validatePlan } from "@/lib/ai/planValidator";
 import { cleanTranscript } from "@/lib/ai/transcriptCleaner";
+import { purgeContentSourceFile } from "@/lib/content/purgeContentSourceFile";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -234,6 +235,12 @@ export async function POST(request: Request) {
         const hasEmb = await contentItemHasEmbeddings(contentItemId);
         if (!hasEmb) {
           await embedContentItem(contentItemId, orgId);
+        }
+
+        try {
+          await purgeContentSourceFile(supabase, contentItemId);
+        } catch (purgeErr) {
+          console.error("[plans/generate] purge source file", contentItemId, purgeErr);
         }
 
         push({
