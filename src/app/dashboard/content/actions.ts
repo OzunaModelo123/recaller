@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractArticleText } from "@/lib/content/articleExtractor";
 import { detectUrlSource } from "@/lib/content/detectUrlSource";
 import { extractDocxText } from "@/lib/content/docxExtractor";
 import { extractLoomTranscript } from "@/lib/content/loomExtractor";
 import { extractPdfText } from "@/lib/content/pdfExtractor";
+import { transcribeUploadedMedia } from "@/lib/content/transcribeUploadedMedia";
 import { extractVimeoTranscript } from "@/lib/content/vimeoExtractor";
 import { extractYouTubeTranscript } from "@/lib/content/youtubeExtractor";
 import { inngest } from "@/lib/inngest/client";
@@ -450,18 +452,26 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
         await supabase
           .from("content_items")
           .update({
-            status: "failed",
             metadata: {
               ...baseMeta,
-              error: `Transcription job could not be queued: ${message}`,
+              transcription_fallback: `Inngest dispatch failed: ${message}`,
             },
           })
           .eq("id", contentItemId);
-        return {
-          ok: false,
-          error:
-            "Upload succeeded, but background transcription could not be started. Check Inngest configuration and try again.",
-        };
+
+        after(async () => {
+          try {
+            await transcribeUploadedMedia(contentItemId);
+          } catch (fallbackError) {
+            console.error("[content] fallback media transcription failed", {
+              contentItemId,
+              error:
+                fallbackError instanceof Error
+                  ? fallbackError.message
+                  : String(fallbackError),
+            });
+          }
+        });
       }
 
       revalidatePath("/dashboard/content");
