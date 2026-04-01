@@ -52,6 +52,7 @@ AGENTS.md
 
 # Next.js boilerplate assets (unused)
 public/file.svg
+public/ffmpeg/
 public/globe.svg
 public/next.svg
 public/vercel.svg
