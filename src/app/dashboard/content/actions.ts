@@ -299,6 +299,59 @@ export async function abortContentFileUpload(contentItemId: string): Promise<{ o
   }
 }
 
+export async function deleteContentItem(
+  contentItemId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const ctx = await requireAdminOrg();
+    if (!ctx.ok) {
+      return { ok: false, error: ctx.error };
+    }
+
+    const { supabase, orgId } = ctx;
+    const { data: row, error: fetchErr } = await supabase
+      .from("content_items")
+      .select("id, org_id, file_path, metadata")
+      .eq("id", contentItemId)
+      .maybeSingle();
+
+    if (fetchErr || !row || row.org_id !== orgId) {
+      return { ok: false, error: "Content item not found." };
+    }
+
+    const originalName =
+      (row.metadata as { original_filename?: string } | null)?.original_filename ?? "upload";
+    const safeName = originalName.replace(/[^\w.\-()+ ]/g, "_");
+    const storagePath = row.file_path ?? `${orgId}/${contentItemId}/${safeName}`;
+
+    await supabase.storage
+      .from(CONTENT_FILES_BUCKET)
+      .remove([storagePath])
+      .catch(() => undefined);
+
+    const { error: deleteErr } = await supabase
+      .from("content_items")
+      .delete()
+      .eq("id", contentItemId)
+      .eq("org_id", orgId);
+
+    if (deleteErr) {
+      return { ok: false, error: deleteErr.message };
+    }
+
+    revalidatePath("/dashboard/content");
+    revalidatePath(`/dashboard/content/${contentItemId}`);
+    return { ok: true };
+  } catch (error) {
+    console.error("[content] delete content crashed", {
+      contentItemId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return { ok: false, error: "Could not delete content." };
+  }
+}
+
 export async function finalizeContentFileUpload(contentItemId: string): Promise<IngestResult> {
   try {
     const ctx = await requireAdminOrg();

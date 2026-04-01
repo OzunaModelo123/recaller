@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Clock, ExternalLink, FileText } from "lucide-react";
 import { GeneratePlanButton } from "@/components/dashboard/generate-plan-button";
 import { createClient } from "@/lib/supabase/server";
+import { ContentDeleteButton } from "../content-delete-button";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -18,13 +19,15 @@ export default async function ContentDetailPage({ params }: Props) {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("org_id")
+    .select("org_id, role")
     .eq("id", user.id)
     .maybeSingle();
 
   if (!profile?.org_id) {
     redirect("/login");
   }
+
+  const isAdmin = profile.role === "admin" || profile.role === "super_admin";
 
   const { data: item } = await supabase
     .from("content_items")
@@ -79,6 +82,13 @@ export default async function ContentDetailPage({ params }: Props) {
           <span className="rounded-lg border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
             {item.source_type}
           </span>
+          {isAdmin ? (
+            <ContentDeleteButton
+              contentItemId={item.id}
+              title={item.title}
+              redirectToLibrary
+            />
+          ) : null}
         </div>
 
         {item.source_url && (

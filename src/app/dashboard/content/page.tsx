@@ -4,6 +4,7 @@ import { FileVideo, Plus, Search, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ContentDeleteButton } from "./content-delete-button";
 
 const SOURCE_FILTERS = [
   { value: "all", label: "All types" },
@@ -201,33 +202,42 @@ export default async function ContentPage({ searchParams }: { searchParams: Sear
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((row) => (
-            <Link
+            <div
               key={row.id}
-              href={`/dashboard/content/${row.id}`}
-              className="group relative rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] hover:border-border"
+              className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] hover:border-border"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${sourceColor(row.source_type)}`}>
-                  {sourceIcon(row.source_type)}
+              <Link
+                href={`/dashboard/content/${row.id}`}
+                className="group block"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${sourceColor(row.source_type)}`}>
+                    {sourceIcon(row.source_type)}
+                  </div>
+                  <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${statusStyle(row.status)}`}>
+                    {row.status}
+                  </span>
                 </div>
-                <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${statusStyle(row.status)}`}>
-                  {row.status}
-                </span>
-              </div>
-              <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-foreground">
-                {row.title}
-              </h3>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {new Date(row.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-              </div>
-            </Link>
+                <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-foreground">
+                  {row.title}
+                </h3>
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(row.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </div>
+              </Link>
+              {isAdmin ? (
+                <div className="mt-4 border-t border-border pt-4">
+                  <ContentDeleteButton contentItemId={row.id} title={row.title} />
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       )}
