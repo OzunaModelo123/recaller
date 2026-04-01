@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { extractArticleText } from "@/lib/content/articleExtractor";
 import { detectUrlSource } from "@/lib/content/detectUrlSource";
 import { extractDocxText } from "@/lib/content/docxExtractor";
@@ -11,7 +12,6 @@ import { extractPdfText } from "@/lib/content/pdfExtractor";
 import { transcribeUploadedMedia } from "@/lib/content/transcribeUploadedMedia";
 import { extractVimeoTranscript } from "@/lib/content/vimeoExtractor";
 import { extractYouTubeTranscript } from "@/lib/content/youtubeExtractor";
-import { inngest } from "@/lib/inngest/client";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024;
 const CONTENT_FILES_BUCKET = "content-files";
@@ -310,8 +310,9 @@ export async function deleteContentItem(
       return { ok: false, error: ctx.error };
     }
 
-    const { supabase, orgId } = ctx;
-    const { data: row, error: fetchErr } = await supabase
+    const admin = createAdminClient();
+    const { orgId } = ctx;
+    const { data: row, error: fetchErr } = await admin
       .from("content_items")
       .select("id, org_id, file_path, metadata")
       .eq("id", contentItemId)
@@ -326,12 +327,92 @@ export async function deleteContentItem(
     const safeName = originalName.replace(/[^\w.\-()+ ]/g, "_");
     const storagePath = row.file_path ?? `${orgId}/${contentItemId}/${safeName}`;
 
-    await supabase.storage
+    const { data: plans, error: plansErr } = await admin
+      .from("plans")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("content_item_id", contentItemId);
+
+    if (plansErr) {
+      return { ok: false, error: plansErr.message };
+    }
+
+    const planIds = (plans ?? []).map((plan) => plan.id);
+
+    if (planIds.length > 0) {
+      const { data: assignments, error: assignmentsErr } = await admin
+        .from("assignments")
+        .select("id")
+        .eq("org_id", orgId)
+        .in("plan_id", planIds);
+
+      if (assignmentsErr) {
+        return { ok: false, error: assignmentsErr.message };
+      }
+
+      const assignmentIds = (assignments ?? []).map((assignment) => assignment.id);
+
+      if (assignmentIds.length > 0) {
+        const { error: stepErr } = await admin
+          .from("step_completions")
+          .delete()
+          .in("assignment_id", assignmentIds);
+        if (stepErr) {
+          return { ok: false, error: stepErr.message };
+        }
+
+        const { error: assignmentDeleteErr } = await admin
+          .from("assignments")
+          .delete()
+          .eq("org_id", orgId)
+          .in("id", assignmentIds);
+        if (assignmentDeleteErr) {
+          return { ok: false, error: assignmentDeleteErr.message };
+        }
+      }
+
+      const { error: planStepErr } = await admin
+        .from("plan_steps")
+        .delete()
+        .in("plan_id", planIds);
+      if (planStepErr) {
+        return { ok: false, error: planStepErr.message };
+      }
+
+      const { error: planEmbeddingErr } = await admin
+        .from("plan_embeddings")
+        .delete()
+        .eq("org_id", orgId)
+        .in("plan_id", planIds);
+      if (planEmbeddingErr) {
+        return { ok: false, error: planEmbeddingErr.message };
+      }
+
+      const { error: planDeleteErr } = await admin
+        .from("plans")
+        .delete()
+        .eq("org_id", orgId)
+        .in("id", planIds);
+      if (planDeleteErr) {
+        return { ok: false, error: planDeleteErr.message };
+      }
+    }
+
+    const { error: contentEmbeddingErr } = await admin
+      .from("content_embeddings")
+      .delete()
+      .eq("org_id", orgId)
+      .eq("content_item_id", contentItemId);
+    if (contentEmbeddingErr) {
+      return { ok: false, error: contentEmbeddingErr.message };
+    }
+
+    await admin.storage
       .from(CONTENT_FILES_BUCKET)
       .remove([storagePath])
       .catch(() => undefined);
 
-    const { error: deleteErr } = await supabase
+    const { error: deleteErr } = await admin
       .from("content_items")
       .delete()
       .eq("id", contentItemId)
@@ -343,6 +424,12 @@ export async function deleteContentItem(
 
     revalidatePath("/dashboard/content");
     revalidatePath(`/dashboard/content/${contentItemId}`);
+    revalidatePath("/dashboard/plans");
+    revalidatePath("/dashboard/assignments");
+    revalidatePath("/dashboard/team");
+    revalidatePath("/dashboard");
+    revalidatePath("/employee");
+    revalidatePath("/employee/my-plans");
     return { ok: true };
   } catch (error) {
     console.error("[content] delete content crashed", {
@@ -435,44 +522,19 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
         return { ok: false, error: upRowErr.message };
       }
 
-      const meta = row.metadata;
-      const baseMeta =
-        meta && typeof meta === "object" && !Array.isArray(meta)
-          ? (meta as Record<string, unknown>)
-          : {};
-
-      try {
-        await inngest.send({
-          name: "content/transcribe.requested",
-          data: { contentItemId },
-        });
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        console.error("[ingest] inngest.send failed", e);
-        await supabase
-          .from("content_items")
-          .update({
-            metadata: {
-              ...baseMeta,
-              transcription_fallback: `Inngest dispatch failed: ${message}`,
-            },
-          })
-          .eq("id", contentItemId);
-
-        after(async () => {
-          try {
-            await transcribeUploadedMedia(contentItemId);
-          } catch (fallbackError) {
-            console.error("[content] fallback media transcription failed", {
-              contentItemId,
-              error:
-                fallbackError instanceof Error
-                  ? fallbackError.message
-                  : String(fallbackError),
-            });
-          }
-        });
-      }
+      after(async () => {
+        try {
+          await transcribeUploadedMedia(contentItemId);
+        } catch (backgroundError) {
+          console.error("[content] background media transcription failed", {
+            contentItemId,
+            error:
+              backgroundError instanceof Error
+                ? backgroundError.message
+                : String(backgroundError),
+          });
+        }
+      });
 
       revalidatePath("/dashboard/content");
       return { ok: true, contentItemId, pollStatus: true };

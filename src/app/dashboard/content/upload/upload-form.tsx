@@ -183,7 +183,7 @@ export function ContentUploadForm() {
               <p className="text-sm font-semibold text-foreground">Processing</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {liveStatus === "queued" || liveStatus === "transcribing" || !liveStatus
-                  ? "Background transcription via Inngest. Run `npx inngest-cli@latest dev` locally."
+                  ? "Background transcription is running for this media file."
                   : "Transcription complete."}
               </p>
             </div>
