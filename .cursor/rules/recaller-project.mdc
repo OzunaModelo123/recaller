@@ -39,15 +39,17 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Active implementation focus
 
-**Phase 8 — NotificationService + Nudges** (next in sequence): unified routing class, Inngest cron nudges with 72hr suppression, Resend email fallback, emails list N steps + proof_instructions. Do not build Phase 9 early.
+**Phase 9 — Billing** (next in sequence): Stripe seat-based billing, checkout sessions, webhook handler, settings billing UI, trial management. Do not build Phase 10 early.
 
 ## Phase status
 
 **Done:** Phase 0 (accounts, `.env.local`). Phase 1 (migrations 001–007, RLS, auth, dashboard shell, employee layout, `src/types/database.ts`). Phase 2 (content extractors, migrations 008–009 — Storage bucket `content-files` + `auth_user_org_id` RLS fix, upload + library UI, Inngest Whisper pipeline, `/api/inngest`). Phase 3 (Company Context onboarding at `/dashboard/onboarding/context` + proxy gate, Settings AI context, `src/lib/ai/*` pipeline — modelRouter, embeddingService, analyzer/generator/validator, transcriptCleaner, migration `012_match_embeddings_rpc` + RPC types, `POST /api/plans/generate` NDJSON progress, plans list + plan editor with quality scores & embeddings on save). Phase 4 (Employee Web Interface — assignments list + N-step progress + per-step proof/evidence UI, `plan_steps.proof_type/proof_instructions`, `step_completions.evidence`, and `POST /api/completions` with `platform: web`). Phase 5 (Manager Dashboard + Distribution — `/dashboard` org metrics with dynamic N-based completion, recent activity feed with evidence summaries, `/dashboard/plans/[id]` completion funnel chart, `/dashboard/assignments` create/cancel/bulk cancel + groups, `/dashboard/team` performance table with date filter + CSV + per-employee evidence history at `/dashboard/team/[id]`). Phase 6 (Slack Bot — `@vercel/slack-bolt` with DB-backed authorize, Block Kit N-step DMs + evidence modals, `/recaller-status` + `/recaller-team` slash commands, App Home, admin channel notifications, employee Link Slack OAuth, `SlackNotifier` with in-place `chat.update`, migrations 015–016). Phase 7 (Microsoft Teams Bot — Bot Connector REST API (no BotBuilder SDK), Adaptive Cards with N-step completion + inline evidence inputs, JWT verification, Azure AD OAuth + Graph user mapping, `TeamsNotifier` proactive DMs, `/api/teams/messages` incoming handler, `/api/teams/install` + `/api/teams/oauth` + `/api/teams/disconnect`, admin + employee Teams integration panels, assignment creation hooks).
 
+Phase 8 (NotificationService + Nudges — unified `NotificationService` routing class with `resolvePlatform` (Slack→Teams→email fallback), `EmailNotifier` + Resend, React Email templates (Assignment, Nudge, WeeklyDigest, TrialExpiry), Inngest cron `sendNudges` every 6h with 48h stall + 72h suppression, `weeklyDigest` Monday 9am, wired into assignment creation + completions flow).
+
 **Deferred env:** `STRIPE_WEBHOOK_SECRET` (9), `SENTRY_AUTH_TOKEN` (12).
 
-**Next:** Phase 8 — NotificationService + Nudges → plan section `### Phase 8: NotificationService + Nudges`.
+**Next:** Phase 9 — Billing → plan section `### Phase 9: Billing`.
 
 ## When you finish or start a phase
 

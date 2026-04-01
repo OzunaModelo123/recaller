@@ -26,7 +26,7 @@
 
 **CLI:** GitHub CLI may live at `/tmp/gh_2.89.0_macOS_arm64/bin/gh` on this machine; use `gh` if it is on your `PATH`.
 
-**Status (mirror `recaller-project.mdc`):** Phases 0–7 done; **next Phase 8** (NotificationService + Nudges — unified routing, Inngest cron, 72hr suppression, Resend email fallback). Repo: https://github.com/OzunaModelo123/recaller
+**Status (mirror `recaller-project.mdc`):** Phases 0–8 done; **next Phase 9** (Billing — Stripe seat-based billing, checkout, webhooks, settings UI, trial management). Repo: https://github.com/OzunaModelo123/recaller
 
 ## Project Instructions
 

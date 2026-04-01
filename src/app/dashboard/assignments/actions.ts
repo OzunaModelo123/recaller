@@ -7,6 +7,8 @@ import {
   notifyTeamsAssignmentOnCreate,
   type TeamsAssignmentPushResult,
 } from "@/lib/notifications/notify-employee-teams-assignment";
+import { notificationService } from "@/lib/notifications/NotificationService";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 async function requireOrgAdmin() {
@@ -170,6 +172,21 @@ export async function createAssignmentsAction(input: {
   }
 
   if (createdRows?.length) {
+    const sb = createAdminClient();
+    const { data: planSteps } = await sb
+      .from("plan_steps")
+      .select(
+        "step_number, title, instructions, success_criteria, proof_type, proof_instructions, estimated_minutes",
+      )
+      .eq("plan_id", planId)
+      .order("step_number", { ascending: true });
+
+    const { data: planRow } = await sb
+      .from("plans")
+      .select("title")
+      .eq("id", planId)
+      .maybeSingle();
+
     await Promise.allSettled(
       createdRows.flatMap((row) => [
         notifySlackAssignmentOnCreate({
@@ -181,6 +198,13 @@ export async function createAssignmentsAction(input: {
           orgId: ctx.orgId!,
           assignmentId: row.id,
           assigneeUserId: row.assigned_to,
+        }),
+        notificationService.sendAssignment(ctx.orgId!, row.assigned_to, {
+          assignmentId: row.id,
+          planTitle: planRow?.title ?? "Training Plan",
+          steps: (planSteps ?? []) as import("@/lib/slack/blockKit").StepData[],
+          dueDate: due,
+          assignerNote: null,
         }),
       ]),
     );
@@ -270,6 +294,21 @@ export async function assignPlanToEmployeeAction(input: {
   }
 
   if (created) {
+    const sb = createAdminClient();
+    const { data: planSteps } = await sb
+      .from("plan_steps")
+      .select(
+        "step_number, title, instructions, success_criteria, proof_type, proof_instructions, estimated_minutes",
+      )
+      .eq("plan_id", planId)
+      .order("step_number", { ascending: true });
+
+    const { data: planRow } = await sb
+      .from("plans")
+      .select("title")
+      .eq("id", planId)
+      .maybeSingle();
+
     await Promise.allSettled([
       notifySlackAssignmentOnCreate({
         orgId: ctx.orgId,
@@ -280,6 +319,13 @@ export async function assignPlanToEmployeeAction(input: {
         orgId: ctx.orgId,
         assignmentId: created.id,
         assigneeUserId: created.assigned_to,
+      }),
+      notificationService.sendAssignment(ctx.orgId, created.assigned_to, {
+        assignmentId: created.id,
+        planTitle: planRow?.title ?? "Training Plan",
+        steps: (planSteps ?? []) as import("@/lib/slack/blockKit").StepData[],
+        dueDate: null,
+        assignerNote: note,
       }),
     ]);
   }
