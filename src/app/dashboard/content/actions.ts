@@ -4,14 +4,11 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractArticleText } from "@/lib/content/articleExtractor";
-import { detectUrlSource } from "@/lib/content/detectUrlSource";
-import { extractDocxText } from "@/lib/content/docxExtractor";
-import { extractLoomTranscript } from "@/lib/content/loomExtractor";
-import { extractPdfText } from "@/lib/content/pdfExtractor";
-import { transcribeUploadedMedia } from "@/lib/content/transcribeUploadedMedia";
-import { extractVimeoTranscript } from "@/lib/content/vimeoExtractor";
-import { extractYouTubeTranscript } from "@/lib/content/youtubeExtractor";
+import {
+  extractTranscriptFromFile,
+  extractTranscriptFromUrl,
+  runBackgroundMediaTranscript,
+} from "@/lib/content/contentTranscriptService";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024;
 const CONTENT_FILES_BUCKET = "content-files";
@@ -58,116 +55,19 @@ export async function ingestContentUrl(url: string): Promise<IngestResult> {
   }
   const { supabase, userId, orgId } = ctx;
 
-  const kind = detectUrlSource(trimmed);
-  if (!kind) {
-    return { ok: false, error: "Could not understand this URL." };
-  }
-
   try {
-    if (kind === "youtube") {
-      const { transcript, metadata } = await extractYouTubeTranscript(trimmed);
-      const title = (metadata.title as string) || "YouTube video";
-      const { data: row, error } = await supabase
-        .from("content_items")
-        .insert({
-          org_id: orgId,
-          uploaded_by: userId,
-          title,
-          source_type: "youtube",
-          source_url: trimmed,
-          transcript,
-          status: "ready",
-          metadata,
-        })
-        .select("id")
-        .single();
-      if (error) {
-        return { ok: false, error: error.message };
-      }
-      revalidatePath("/dashboard/content");
-      return { ok: true, contentItemId: row!.id, pollStatus: false };
-    }
-
-    if (kind === "vimeo") {
-      const transcript = await extractVimeoTranscript(trimmed);
-      if (!transcript) {
-        return {
-          ok: false,
-          error: process.env.VIMEO_ACCESS_TOKEN
-            ? "No captions on this Vimeo video. Upload the video file for AI transcription."
-            : "Vimeo captions require VIMEO_ACCESS_TOKEN in the server environment, or upload the video file for AI transcription.",
-        };
-      }
-      const { data: row, error } = await supabase
-        .from("content_items")
-        .insert({
-          org_id: orgId,
-          uploaded_by: userId,
-          title: "Vimeo video",
-          source_type: "vimeo",
-          source_url: trimmed,
-          transcript,
-          status: "ready",
-          metadata: {},
-        })
-        .select("id")
-        .single();
-      if (error) {
-        return { ok: false, error: error.message };
-      }
-      revalidatePath("/dashboard/content");
-      return { ok: true, contentItemId: row!.id, pollStatus: false };
-    }
-
-    if (kind === "loom") {
-      const transcript = await extractLoomTranscript(trimmed);
-      if (!transcript) {
-        return {
-          ok: false,
-          error:
-            "No Loom transcript was found. Upload the recording file for AI transcription.",
-        };
-      }
-      const { data: row, error } = await supabase
-        .from("content_items")
-        .insert({
-          org_id: orgId,
-          uploaded_by: userId,
-          title: "Loom video",
-          source_type: "loom",
-          source_url: trimmed,
-          transcript,
-          status: "ready",
-          metadata: {},
-        })
-        .select("id")
-        .single();
-      if (error) {
-        return { ok: false, error: error.message };
-      }
-      revalidatePath("/dashboard/content");
-      return { ok: true, contentItemId: row!.id, pollStatus: false };
-    }
-
-    const transcript = await extractArticleText(trimmed);
-    let title = "Web article";
-    try {
-      const u = new URL(trimmed);
-      title = u.hostname.replace(/^www\./, "");
-    } catch {
-      /* keep default title */
-    }
+    const extracted = await extractTranscriptFromUrl(trimmed);
     const { data: row, error } = await supabase
       .from("content_items")
       .insert({
         org_id: orgId,
         uploaded_by: userId,
-        title,
-        source_type: "web_article",
+        title: extracted.title ?? "Imported content",
+        source_type: extracted.sourceType,
         source_url: trimmed,
-        transcript,
+        transcript: extracted.transcript,
         status: "ready",
-        metadata: {},
+        metadata: extracted.metadata,
       })
       .select("id")
       .single();
@@ -481,8 +381,11 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
 
     if (sourceType === "pdf" || sourceType === "docx") {
       try {
-        const transcript =
-          sourceType === "pdf" ? await extractPdfText(buffer) : await extractDocxText(buffer);
+        const extracted = await extractTranscriptFromFile(sourceType, buffer);
+        const transcript = extracted.mode === "instant" ? extracted.transcript : null;
+        if (!transcript) {
+          throw new Error("Could not extract text from this file.");
+        }
         await supabase.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
         const { error: upErr } = await supabase
           .from("content_items")
@@ -524,7 +427,7 @@ export async function finalizeContentFileUpload(contentItemId: string): Promise<
 
       after(async () => {
         try {
-          await transcribeUploadedMedia(contentItemId);
+          await runBackgroundMediaTranscript(contentItemId);
         } catch (backgroundError) {
           console.error("[content] background media transcription failed", {
             contentItemId,
