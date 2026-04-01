@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
 import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
+import { sanitizeInternalNext } from "@/lib/auth/safe-next";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/post-login";
+  const next = sanitizeInternalNext(requestUrl.searchParams.get("next"));
   const accessToken = requestUrl.searchParams.get("access_token");
   const refreshToken = requestUrl.searchParams.get("refresh_token");
 

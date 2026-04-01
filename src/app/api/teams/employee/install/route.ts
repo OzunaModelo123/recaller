@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 
 import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { createClient } from "@/lib/supabase/server";
+import { signTeamsEmployeeLinkState } from "@/lib/teams/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -73,9 +74,7 @@ export async function GET(request: Request) {
     return redirectIntegrations("error", "workspace_teams_not_connected", request.url);
   }
 
-  const state = Buffer.from(
-    JSON.stringify({ uid: user.id, exp: Date.now() + 600_000 }),
-  ).toString("base64url");
+  const state = signTeamsEmployeeLinkState(user.id, profile.org_id);
 
   const redirectUri = `${origin}/api/teams/employee/oauth`;
 

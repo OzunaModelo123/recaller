@@ -2,8 +2,17 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
+import { sanitizeInternalNext } from "@/lib/auth/safe-next";
 
-export default async function PostLoginPage() {
+export default async function PostLoginPage(props: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const searchParams = (await props.searchParams) ?? {};
+  const nextParam = searchParams.next;
+  const next =
+    typeof nextParam === "string"
+      ? sanitizeInternalNext(nextParam)
+      : "/post-login";
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,8 +56,14 @@ export default async function PostLoginPage() {
     if (invitedOrg && !passwordSet) {
       redirect("/employee/setup-password");
     }
+    if (next.startsWith("/employee")) {
+      redirect(next);
+    }
     redirect("/employee");
   }
 
+  if (next.startsWith("/dashboard")) {
+    redirect(next);
+  }
   redirect("/dashboard");
 }

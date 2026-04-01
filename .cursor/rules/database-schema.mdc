@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Database schema & conventions
 
-## 16 migrations (apply in order)
+## 17 migrations (apply in order)
 
 1. `001_core_identity` — organisations, users, invitations + pgvector extension
 2. `002_content_plans` — content_items, content_embeddings (VECTOR 1536), plans, plan_steps, plan_embeddings (VECTOR 1536) + HNSW indexes  
@@ -25,6 +25,7 @@ alwaysApply: false
 14. `014_assignments_assigner_note` — `assignments.assigner_note` (text, nullable) for manager message shown to assignee.
 15. `015_slack_installations_service_only` — drop `slack_installations_org_admin_select` so bot tokens are only accessible via `service_role` (app encrypts at rest when `SLACK_BOT_TOKEN_ENCRYPTION_KEY` is set).
 16. `016_slack_admin_channel_employee_link` — `organisations.slack_admin_channel_id` (admin read-only completion notices); `users.slack_employee_linked_at` (employee Connect Slack OAuth); `slack_installations.installation_kind` default `workspace`.
+17. `017_active_assignment_uniqueness` — partial unique index on `assignments (org_id, plan_id, assigned_to)` where `status = 'active'` (one active assignment per employee per plan per org).
 
 **Design:** Plans have **2–10** behavioral steps. AI suggests count from content complexity; admins can edit before publish. Each step defines **proof** expectations for employee submissions (`evidence` JSONB on completions).
 

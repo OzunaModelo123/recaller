@@ -54,7 +54,6 @@ export async function POST(request: Request) {
   }
 
   const serviceUrl = activity.serviceUrl;
-  const conversationId = activity.conversation?.id;
   const tenantId =
     activity.conversation?.tenantId ??
     activity.channelData?.tenant?.id;
@@ -72,7 +71,7 @@ export async function POST(request: Request) {
 
     case "invoke":
       if (activity.name === "adaptiveCard/action") {
-        return handleAdaptiveCardAction(activity, serviceUrl, conversationId);
+        return handleAdaptiveCardAction(activity);
       }
       return NextResponse.json({ statusCode: 200 }, { status: 200 });
 
@@ -164,11 +163,7 @@ function handleMessage(activity: IncomingActivity) {
   });
 }
 
-async function handleAdaptiveCardAction(
-  activity: IncomingActivity,
-  serviceUrl: string | undefined,
-  conversationId: string | undefined,
-) {
+async function handleAdaptiveCardAction(activity: IncomingActivity) {
   const actionData = activity.value?.action as Record<string, unknown> | undefined;
 
   if (!actionData || actionData.action !== "complete_step") {
@@ -308,7 +303,12 @@ async function completeStepFromTeams(
     evidence: evidenceJson,
   });
 
-  if (insErr) return { ok: false, error: insErr.message };
+  if (insErr) {
+    if (insErr.code === "23505") {
+      return { ok: false, error: "This step is already completed." };
+    }
+    return { ok: false, error: insErr.message };
+  }
 
   const { count: totalSteps } = await sb
     .from("plan_steps")

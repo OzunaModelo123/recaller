@@ -78,15 +78,25 @@ export default async function ContentPage({ searchParams }: { searchParams: Sear
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role")
+    .select("role, org_id")
     .eq("id", user.id)
     .single();
 
   const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
+  const orgId = profile?.org_id;
+
+  if (!orgId) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900">
+        Your account is not linked to an organization yet. Ask an admin or complete signup.
+      </div>
+    );
+  }
 
   let query = supabase
     .from("content_items")
     .select("id, title, source_type, status, created_at")
+    .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
   if (q) {

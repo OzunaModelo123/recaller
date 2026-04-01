@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { createClient } from "@/lib/supabase/server";
+import { verifyTeamsOAuthState } from "@/lib/teams/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -54,20 +55,9 @@ export async function GET(request: Request) {
     return redirectIntegrations("error", err ?? "missing_code", request.url);
   }
 
-  let state: { uid: string; exp: number };
-  try {
-    state = JSON.parse(
-      Buffer.from(stateParam ?? "", "base64url").toString("utf8"),
-    ) as { uid: string; exp: number };
-  } catch {
+  const state = verifyTeamsOAuthState(stateParam);
+  if (!state || state.mode !== "employee_link") {
     return redirectIntegrations("error", "invalid_state", request.url);
-  }
-
-  if (!state.uid || typeof state.exp !== "number") {
-    return redirectIntegrations("error", "invalid_state", request.url);
-  }
-  if (Date.now() > state.exp) {
-    return redirectIntegrations("error", "state_expired", request.url);
   }
 
   const supabase = await createClient();
@@ -130,6 +120,9 @@ export async function GET(request: Request) {
 
   if (!profile?.org_id) {
     return redirectIntegrations("error", "no_org", request.url);
+  }
+  if (profile.org_id !== state.orgId) {
+    return redirectIntegrations("error", "session_mismatch", request.url);
   }
 
   const sb = createAdminClient();

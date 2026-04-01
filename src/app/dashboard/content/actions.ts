@@ -294,6 +294,8 @@ export async function ingestContentFile(formData: FormData): Promise<IngestResul
     .eq("id", row.id);
 
   if (upRowErr) {
+    await supabase.storage.from("content-files").remove([storagePath]).catch(() => undefined);
+    await supabase.from("content_items").delete().eq("id", row.id);
     return { ok: false, error: upRowErr.message };
   }
 
@@ -303,7 +305,20 @@ export async function ingestContentFile(formData: FormData): Promise<IngestResul
       data: { contentItemId: row.id },
     });
   } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
     console.error("[ingest] inngest.send failed", e);
+    await supabase
+      .from("content_items")
+      .update({
+        status: "failed",
+        metadata: { original_filename: name, error: `Transcription job could not be queued: ${message}` },
+      })
+      .eq("id", row.id);
+    return {
+      ok: false,
+      error:
+        "Upload succeeded, but background transcription could not be started. Check Inngest configuration and try again.",
+    };
   }
 
   revalidatePath("/dashboard/content");

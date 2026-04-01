@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { sanitizeInternalNext } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setupError = searchParams.get("error");
+  const next = sanitizeInternalNext(searchParams.get("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,17 +51,17 @@ function LoginFormInner() {
       }
 
       // Remove tokens from the address bar (they are now in cookies).
-      window.history.replaceState({}, document.title, "/login");
+      window.history.replaceState({}, document.title, next === "/post-login" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
 
       // Provision + routing (including invite password gate) happen in /post-login.
-      router.replace("/post-login");
+      router.replace(next === "/post-login" ? "/post-login" : `/post-login?next=${encodeURIComponent(next)}`);
       router.refresh();
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [next, router]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -79,7 +81,7 @@ function LoginFormInner() {
       return;
     }
 
-    router.push("/post-login");
+    router.push(next === "/post-login" ? "/post-login" : `/post-login?next=${encodeURIComponent(next)}`);
     router.refresh();
   }
 

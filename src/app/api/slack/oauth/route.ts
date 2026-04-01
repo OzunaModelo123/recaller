@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { WebClient } from "@slack/web-api";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { sealSlackBotToken } from "@/lib/slack/bot-token-crypto";
 import { verifySlackOAuthState } from "@/lib/slack/oauth-state";
 
@@ -34,6 +35,28 @@ export async function GET(request: Request) {
   const state = verifySlackOAuthState(stateParam);
   if (!state) {
     return redirect("error", "invalid_state");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || user.id !== state.userId) {
+    return redirect("error", "session_mismatch");
+  }
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("org_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (
+    !profile?.org_id ||
+    profile.org_id !== state.orgId ||
+    !["admin", "super_admin"].includes(profile.role ?? "")
+  ) {
+    return redirect("error", "forbidden");
   }
 
   const orgId = state.orgId;

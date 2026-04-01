@@ -188,7 +188,8 @@ export function TeamsIntegrationPanel({
           <ol className="list-decimal space-y-2 pl-4 text-xs text-muted-foreground">
             <li>
               <span className="font-medium text-foreground">Create an Azure Bot</span> in the Azure
-              Portal (search for "Azure Bot"). Choose "Single Tenant" and "Create new Microsoft App ID."
+              Portal (search for &quot;Azure Bot&quot;). Choose &quot;Single Tenant&quot; and
+              &quot;Create new Microsoft App ID.&quot;
             </li>
             <li>
               Set the <span className="font-medium text-foreground">Messaging endpoint</span> to:{" "}

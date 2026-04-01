@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 
 import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { createClient } from "@/lib/supabase/server";
+import { signTeamsAdminInstallState } from "@/lib/teams/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -61,9 +62,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/dashboard/integrations?teams=error&reason=forbidden`);
   }
 
-  const state = Buffer.from(
-    JSON.stringify({ orgId: profile.org_id }),
-  ).toString("base64url");
+  const state = signTeamsAdminInstallState(profile.org_id, user.id);
 
   const redirectUri = `${origin}/api/teams/oauth`;
 

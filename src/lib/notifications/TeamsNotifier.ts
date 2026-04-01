@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   sendActivity,
   createConversation,
+  updateActivity,
   type Activity,
 } from "@/lib/teams/restClient";
 import {
@@ -201,14 +202,101 @@ export class TeamsNotifier {
   }
 
   /**
-   * For Teams, step confirmation updates happen in-place via the invoke response
-   * in the messages route handler. This is a no-op.
+   * After a web (or Slack) completion, refresh the Adaptive Card in the existing
+   * Teams DM using the stored conversation + activity id from `notifications`.
    */
   async sendStepConfirmation(
     _teamsUserId: string,
-    _assignmentId: string,
+    assignmentId: string,
   ): Promise<void> {
-    // Card updates in-place via Action.Submit invoke response — no separate message needed
+    void _teamsUserId;
+    const sb = createAdminClient();
+
+    const { data: assignment } = await sb
+      .from("assignments")
+      .select(
+        "id, plan_id, due_date, assigner_note, assigned_to, org_id, plans(title)",
+      )
+      .eq("id", assignmentId)
+      .maybeSingle();
+
+    if (!assignment) return;
+
+    const inst = await getTeamsInstallation(assignment.org_id);
+    if (!inst?.service_url) return;
+
+    const { data: notifRows, error: notifErr } = await sb
+      .from("notifications")
+      .select("teams_activity_id, payload")
+      .eq("user_id", assignment.assigned_to)
+      .eq("org_id", assignment.org_id)
+      .eq("type", "assignment")
+      .eq("channel", "teams")
+      .contains("payload", { assignmentId: assignment.id })
+      .order("sent_at", { ascending: false, nullsFirst: false })
+      .limit(1);
+
+    if (notifErr || !notifRows?.length) return;
+    const notif = notifRows[0];
+    const activityId = notif?.teams_activity_id?.trim();
+    const payload = notif?.payload as {
+      teamsConversationId?: string;
+    } | null;
+    const conversationId = payload?.teamsConversationId?.trim();
+    if (!activityId || !conversationId) return;
+
+    const { data: steps } = await sb
+      .from("plan_steps")
+      .select(
+        "step_number, title, instructions, success_criteria, proof_type, proof_instructions, estimated_minutes",
+      )
+      .eq("plan_id", assignment.plan_id)
+      .order("step_number", { ascending: true });
+
+    const { data: completions } = await sb
+      .from("step_completions")
+      .select("step_number")
+      .eq("assignment_id", assignmentId);
+
+    const { data: userRow } = await sb
+      .from("users")
+      .select("full_name, email")
+      .eq("id", assignment.assigned_to)
+      .maybeSingle();
+
+    const planTitle =
+      (assignment as unknown as { plans: { title: string } | null }).plans
+        ?.title ?? "Training Plan";
+
+    const assignmentData: AssignmentData = {
+      id: assignment.id,
+      planTitle,
+      dueDate: assignment.due_date,
+      assignerNote: assignment.assigner_note,
+    };
+    const completedSet = new Set(
+      (completions ?? []).map((c) => c.step_number),
+    );
+    const employeeName =
+      userRow?.full_name ?? userRow?.email ?? "there";
+
+    const card = buildAssignmentCard(
+      assignmentData,
+      (steps ?? []) as StepData[],
+      employeeName,
+      completedSet,
+    );
+
+    try {
+      await updateActivity(
+        inst.service_url,
+        conversationId,
+        activityId,
+        cardActivity(card),
+      );
+    } catch (e) {
+      console.error("[TeamsNotifier] sendStepConfirmation updateActivity failed", e);
+    }
   }
 
   async sendWeeklyDigest(

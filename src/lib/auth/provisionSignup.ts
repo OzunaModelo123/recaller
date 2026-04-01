@@ -116,7 +116,27 @@ export async function provisionSignupIfNeeded(
     });
 
     if (userError) {
+      await admin.from("organisations").delete().eq("id", org.id);
       return { ok: false, error: userError.message };
+    }
+
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const { error: subscriptionError } = await admin.from("subscriptions").upsert(
+      {
+        org_id: org.id,
+        status: "trialing",
+        plan_tier: "starter",
+        seat_count: 1,
+        seat_limit: 1,
+        trial_ends_at: trialEndsAt,
+      },
+      { onConflict: "org_id" },
+    );
+
+    if (subscriptionError) {
+      await admin.from("users").delete().eq("id", user.id);
+      await admin.from("organisations").delete().eq("id", org.id);
+      return { ok: false, error: subscriptionError.message };
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

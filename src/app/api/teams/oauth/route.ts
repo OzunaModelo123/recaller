@@ -8,10 +8,9 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicAppOrigin } from "@/lib/public-app-url";
-import {
-  reconstructExtEmail,
-  listAllTenantUsers,
-} from "@/lib/teams/graphClient";
+import { createClient } from "@/lib/supabase/server";
+import { verifyTeamsOAuthState } from "@/lib/teams/oauth-state";
+import { mapTeamsUsersToRecaller } from "@/lib/teams/mapTeamsUsersToRecaller";
 
 export const runtime = "nodejs";
 
@@ -72,15 +71,34 @@ export async function GET(request: Request) {
     return redirect("error", "missing_state", request.url);
   }
 
-  let state: { orgId: string };
-  try {
-    state = JSON.parse(Buffer.from(stateParam, "base64url").toString()) as { orgId: string };
-  } catch {
+  const state = verifyTeamsOAuthState(stateParam);
+  if (!state || state.mode !== "admin_install") {
     return redirect("error", "invalid_state", request.url);
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || user.id !== state.userId) {
+    return redirect("error", "session_mismatch", request.url);
+  }
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("org_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (
+    !profile?.org_id ||
+    profile.org_id !== state.orgId ||
+    !["admin", "super_admin"].includes(profile.role ?? "")
+  ) {
+    return redirect("error", "forbidden", request.url);
+  }
+
   const orgId = state.orgId;
-  if (!orgId) return redirect("error", "missing_org_id", request.url);
 
   const tenantId = process.env.TEAMS_TENANT_ID;
   const appId = process.env.TEAMS_APP_ID;
@@ -183,44 +201,4 @@ export async function GET(request: Request) {
       request.url,
     );
   }
-}
-
-export async function mapTeamsUsersToRecaller(
-  graphToken: string,
-  orgId: string,
-): Promise<{ mapped: number }> {
-  const sb = createAdminClient();
-  const tenantUsers = await listAllTenantUsers(graphToken);
-  let mapped = 0;
-
-  for (const member of tenantUsers) {
-    const rawEmail = (member.mail ?? member.userPrincipalName ?? "").toLowerCase().trim();
-    if (!rawEmail) continue;
-
-    const emailsToTry = new Set<string>([rawEmail]);
-
-    // Guest accounts come back as user_domain.com#EXT#@tenant.onmicrosoft.com
-    const reconstructed = reconstructExtEmail(rawEmail);
-    if (reconstructed) emailsToTry.add(reconstructed.toLowerCase());
-
-    for (const email of emailsToTry) {
-      const { count } = await sb
-        .from("users")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .ilike("email", email);
-
-      if ((count ?? 0) > 0) {
-        await sb
-          .from("users")
-          .update({ teams_user_id: member.id })
-          .eq("org_id", orgId)
-          .ilike("email", email);
-        mapped++;
-        break;
-      }
-    }
-  }
-
-  return { mapped };
 }

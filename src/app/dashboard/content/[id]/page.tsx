@@ -16,10 +16,21 @@ export default async function ContentDetailPage({ params }: Props) {
     redirect("/login");
   }
 
+  const { data: profile } = await supabase
+    .from("users")
+    .select("org_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile?.org_id) {
+    redirect("/login");
+  }
+
   const { data: item } = await supabase
     .from("content_items")
-    .select("id, title, source_type, source_url, status, transcript, created_at, metadata")
+    .select("id, title, source_type, source_url, status, transcript, created_at, metadata, org_id")
     .eq("id", id)
+    .eq("org_id", profile.org_id)
     .maybeSingle();
 
   if (!item) {

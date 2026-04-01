@@ -125,7 +125,19 @@ export async function createAssignmentsAction(input: {
   const groupId =
     input.mode === "group" && input.groupId?.trim() ? input.groupId.trim() : null;
 
-  const rows = targetUserIds.map((assigned_to) => ({
+  const uniqueTargetUserIds = [...new Set(targetUserIds)];
+  const { data: existingAssignments } = await ctx.supabase
+    .from("assignments")
+    .select("assigned_to")
+    .eq("org_id", ctx.orgId)
+    .eq("plan_id", planId)
+    .eq("status", "active")
+    .in("assigned_to", uniqueTargetUserIds);
+
+  const existingAssignees = new Set((existingAssignments ?? []).map((row) => row.assigned_to));
+  const rows = uniqueTargetUserIds
+    .filter((assignedTo) => !existingAssignees.has(assignedTo))
+    .map((assigned_to) => ({
     org_id: ctx.orgId,
     plan_id: planId,
     assigned_to,
@@ -136,11 +148,26 @@ export async function createAssignmentsAction(input: {
     status: "active" as const,
   }));
 
+  if (rows.length === 0) {
+    return {
+      ok: false as const,
+      error: "All selected employees already have an active assignment for this plan.",
+    };
+  }
+
   const { data: createdRows, error } = await ctx.supabase
     .from("assignments")
     .insert(rows)
     .select("id, assigned_to");
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        ok: false as const,
+        error: "One or more selected employees already have an active assignment for this plan.",
+      };
+    }
+    return { ok: false as const, error: error.message };
+  }
 
   if (createdRows?.length) {
     await Promise.allSettled(
@@ -231,7 +258,16 @@ export async function assignPlanToEmployeeAction(input: {
     .select("id, assigned_to")
     .single();
 
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        ok: false as const,
+        error:
+          "This employee already has an active assignment for this plan. Cancel it first or pick another person.",
+      };
+    }
+    return { ok: false as const, error: error.message };
+  }
 
   if (created) {
     await Promise.allSettled([

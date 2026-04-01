@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { notifyAdminSlackChannelOnCompletion } from "@/lib/notifications/notify-admin-slack";
 import { refreshSlackAssignmentDmAfterWebCompletion } from "@/lib/notifications/notify-employee-slack-assignment";
+import { refreshTeamsAssignmentCardAfterWebCompletion } from "@/lib/notifications/notify-employee-teams-assignment";
 
 export const runtime = "nodejs";
 
@@ -130,6 +131,12 @@ export async function POST(request: Request) {
   });
 
   if (insErr) {
+    if (insErr.code === "23505") {
+      return NextResponse.json(
+        { error: "This step is already marked complete" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
 
@@ -166,12 +173,16 @@ export async function POST(request: Request) {
     if (!upErr) assignmentStatus = "completed";
   }
 
-  await notifyAdminSlackChannelOnCompletion({
-    orgId: assignment.org_id,
-    assignmentId,
-    stepNumber,
-    platform,
-  });
+  try {
+    await notifyAdminSlackChannelOnCompletion({
+      orgId: assignment.org_id,
+      assignmentId,
+      stepNumber,
+      platform,
+    });
+  } catch (e) {
+    console.error("[completions] Admin Slack notify failed", e);
+  }
 
   if (platform === "web") {
     try {
@@ -182,6 +193,15 @@ export async function POST(request: Request) {
       });
     } catch (e) {
       console.error("[completions] Slack DM refresh failed", e);
+    }
+    try {
+      await refreshTeamsAssignmentCardAfterWebCompletion({
+        orgId: assignment.org_id,
+        assignmentId,
+        assigneeUserId: user.id,
+      });
+    } catch (e) {
+      console.error("[completions] Teams card refresh failed", e);
     }
   }
 

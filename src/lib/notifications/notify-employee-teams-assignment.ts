@@ -55,3 +55,38 @@ export async function notifyTeamsAssignmentOnCreate(params: {
     return { ok: false, reason: "send_failed", detail };
   }
 }
+
+/**
+ * After a step is completed in the web app, refresh the Adaptive Card in Teams
+ * (checkmarks / submit state) so it matches My Plans.
+ */
+export async function refreshTeamsAssignmentCardAfterWebCompletion(params: {
+  orgId: string;
+  assignmentId: string;
+  assigneeUserId: string;
+}): Promise<void> {
+  const sb = createAdminClient();
+
+  const { data: inst } = await sb
+    .from("teams_installations")
+    .select("service_url, tenant_id")
+    .eq("org_id", params.orgId)
+    .maybeSingle();
+
+  if (!inst?.service_url || !inst.tenant_id) return;
+
+  const { data: assignee } = await sb
+    .from("users")
+    .select("teams_user_id")
+    .eq("id", params.assigneeUserId)
+    .eq("org_id", params.orgId)
+    .maybeSingle();
+
+  if (!assignee?.teams_user_id) return;
+
+  const notifier = new TeamsNotifier();
+  await notifier.sendStepConfirmation(
+    assignee.teams_user_id,
+    params.assignmentId,
+  );
+}

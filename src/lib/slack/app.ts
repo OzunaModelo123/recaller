@@ -373,7 +373,12 @@ async function callCompletionsApi(
     platform_completed_on: "slack",
     evidence: evidenceJson,
   });
-  if (insErr) return { ok: false, error: insErr.message };
+  if (insErr) {
+    if (insErr.code === "23505") {
+      return { ok: false, error: "Already completed" };
+    }
+    return { ok: false, error: insErr.message };
+  }
 
   const { count: totalSteps } = await sb
     .from("plan_steps")

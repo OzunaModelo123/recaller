@@ -7,12 +7,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getGraphAccessToken } from "@/lib/teams/graphClient";
-import { mapTeamsUsersToRecaller } from "@/app/api/teams/oauth/route";
+import { mapTeamsUsersToRecaller } from "@/lib/teams/mapTeamsUsersToRecaller";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-export async function POST(request: Request) {
+export async function POST() {
   // Authenticate the calling admin.
   const supabase = await createClient();
   const {

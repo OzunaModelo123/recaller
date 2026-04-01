@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { mapTeamsUsersToRecaller } from "@/lib/teams/mapTeamsUsersToRecaller";
 
 export const runtime = "nodejs";
 
@@ -101,9 +102,9 @@ export async function POST() {
       { onConflict: "org_id" },
     );
 
-    const mappedCount = await mapTeamsUsersToRecaller(graphToken, orgId);
+    const { mapped } = await mapTeamsUsersToRecaller(graphToken, orgId);
 
-    return NextResponse.json({ ok: true, mappedUsers: mappedCount });
+    return NextResponse.json({ ok: true, mappedUsers: mapped });
   } catch (err) {
     console.error("[Teams Connect]", err);
 
@@ -173,51 +174,3 @@ async function getGraphTokenViaClientCredentials(
   return json.access_token;
 }
 
-async function mapTeamsUsersToRecaller(
-  graphToken: string,
-  orgId: string,
-): Promise<number> {
-  const sb = createAdminClient();
-  let mapped = 0;
-
-  let nextLink: string | null =
-    "https://graph.microsoft.com/v1.0/users?$select=id,mail,userPrincipalName&$top=100";
-
-  while (nextLink) {
-    const res = await fetch(nextLink, {
-      headers: { Authorization: `Bearer ${graphToken}` },
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("[Teams Connect] Graph users.list failed:", text);
-
-      if (text.includes("Authorization_RequestDenied") || text.includes("Insufficient privileges")) {
-        throw new Error("Authorization_RequestDenied: Insufficient privileges to list users");
-      }
-      break;
-    }
-
-    const data = (await res.json()) as {
-      value: { id: string; mail?: string; userPrincipalName?: string }[];
-      "@odata.nextLink"?: string;
-    };
-
-    for (const member of data.value) {
-      const email = (member.mail ?? member.userPrincipalName ?? "").toLowerCase().trim();
-      if (!email) continue;
-
-      const { count } = await sb
-        .from("users")
-        .update({ teams_user_id: member.id })
-        .eq("org_id", orgId)
-        .ilike("email", email);
-
-      if (count && count > 0) mapped += count;
-    }
-
-    nextLink = data["@odata.nextLink"] ?? null;
-  }
-
-  return mapped;
-}
