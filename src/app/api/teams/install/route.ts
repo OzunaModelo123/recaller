@@ -4,20 +4,40 @@
  */
 import { NextResponse } from "next/server";
 
+import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  const appId = process.env.TEAMS_APP_ID;
-  const tenantId = process.env.TEAMS_TENANT_ID;
-  const origin = process.env.NEXT_PUBLIC_APP_URL;
+function redirectToIntegrations(reason: string, requestUrl?: string) {
+  let base = getPublicAppOrigin();
+  if (!base && requestUrl) {
+    try {
+      base = new URL(requestUrl).origin;
+    } catch {
+      base = "";
+    }
+  }
+  const dest = new URL(
+    "/dashboard/integrations",
+    base || "http://localhost:3000",
+  );
+  dest.searchParams.set("teams", "error");
+  dest.searchParams.set("reason", reason);
+  return NextResponse.redirect(dest.toString());
+}
 
-  if (!appId || !tenantId || !origin) {
-    return NextResponse.json(
-      { error: "Teams environment variables not configured" },
-      { status: 500 },
-    );
+export async function GET(request: Request) {
+  const appId = process.env.TEAMS_APP_ID?.trim();
+  const tenantId = process.env.TEAMS_TENANT_ID?.trim();
+  const origin = getPublicAppOrigin();
+
+  if (!origin) {
+    return redirectToIntegrations("missing_app_url", request.url);
+  }
+
+  if (!appId || !tenantId) {
+    return redirectToIntegrations("missing_teams_env", request.url);
   }
 
   const supabase = await createClient();

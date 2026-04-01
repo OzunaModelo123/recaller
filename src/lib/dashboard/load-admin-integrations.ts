@@ -21,6 +21,8 @@ export type AdminIntegrationsLoad = {
   teamsTenantId: string | null;
   teamsMappedUsers: number;
   teamsOAuthUrl: string;
+  /** True when TEAMS_APP_ID + TEAMS_TENANT_ID are set (required before Connect Teams works). */
+  teamsEnvConfigured: boolean;
 };
 
 export async function loadAdminIntegrationsForUser(
@@ -80,5 +82,8 @@ export async function loadAdminIntegrationsForUser(
     teamsTenantId: org?.teams_tenant_id ?? null,
     teamsMappedUsers,
     teamsOAuthUrl: teamsOAuthStartUrl(),
+    teamsEnvConfigured: Boolean(
+      process.env.TEAMS_APP_ID?.trim() && process.env.TEAMS_TENANT_ID?.trim(),
+    ),
   };
 }

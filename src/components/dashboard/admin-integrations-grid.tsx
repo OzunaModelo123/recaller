@@ -39,6 +39,7 @@ export function AdminIntegrationsGrid({
         teamsReason={teamsReason}
         teamsOAuthUrl={data.teamsOAuthUrl}
         publicAppOrigin={data.publicAppOrigin}
+        teamsEnvConfigured={data.teamsEnvConfigured}
       />
     </div>
   );

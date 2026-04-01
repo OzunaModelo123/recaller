@@ -19,6 +19,7 @@ type Props = {
   teamsReason: string | null;
   teamsOAuthUrl: string;
   publicAppOrigin: string;
+  teamsEnvConfigured: boolean;
 };
 
 export function TeamsIntegrationPanel({
@@ -29,6 +30,7 @@ export function TeamsIntegrationPanel({
   teamsReason,
   teamsOAuthUrl,
   publicAppOrigin,
+  teamsEnvConfigured,
 }: Props) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [isDisconnected, setIsDisconnected] = useState(false);
@@ -86,7 +88,41 @@ export function TeamsIntegrationPanel({
       {teamsResult === "error" && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
           <X className="mr-1.5 inline h-4 w-4" />
-          Teams connection failed{teamsReason ? `: ${teamsReason}` : ""}. Please try again.
+          {teamsReason === "missing_teams_env" ? (
+            <>
+              <span className="font-medium">Teams isn’t configured on the server yet.</span> In the
+              Vercel project → Settings → Environment Variables (Production), add{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code>,{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code>, and{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code>{" "}
+              (Azure Bot App ID, Directory tenant ID, and client secret). Set{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">NEXT_PUBLIC_APP_URL</code>{" "}
+              to your live URL (e.g. https://recaller-seven.vercel.app), then redeploy.
+            </>
+          ) : teamsReason === "missing_app_url" ? (
+            <>
+              <span className="font-medium">App URL is not set.</span> Set{" "}
+              <code className="rounded bg-background/60 px-1 text-[11px]">NEXT_PUBLIC_APP_URL</code>{" "}
+              in Vercel to your production origin so OAuth redirects work, then redeploy.
+            </>
+          ) : (
+            <>
+              Teams connection failed
+              {teamsReason && teamsReason !== "forbidden" ? `: ${teamsReason}` : teamsReason === "forbidden" ? ": admin only" : ""}
+              . Please try again.
+            </>
+          )}
+        </div>
+      )}
+
+      {!isConnected && !teamsEnvConfigured && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+          <span className="font-medium">Connect Teams is disabled</span> until{" "}
+          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_ID</code> and{" "}
+          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_TENANT_ID</code> are set
+          on the server (Vercel → Environment Variables → Production). Also add{" "}
+          <code className="rounded bg-background/60 px-1 text-[11px]">TEAMS_APP_PASSWORD</code> for
+          the bot token flow and redeploy.
         </div>
       )}
 
@@ -159,21 +195,20 @@ export function TeamsIntegrationPanel({
         </div>
       ) : (
         <div className="mt-4">
-          {teamsOAuthUrl ? (
+          {teamsOAuthUrl && teamsEnvConfigured ? (
             <Button size="sm" asChild>
               <a href={teamsOAuthUrl}>
                 <MessageSquareMore className="mr-1.5 h-3.5 w-3.5" />
                 Connect Teams
               </a>
             </Button>
-          ) : (
+          ) : !teamsOAuthUrl ? (
             <p className="text-xs text-muted-foreground">
-              Set <code className="rounded bg-background/60 px-1">TEAMS_APP_ID</code>,{" "}
-              <code className="rounded bg-background/60 px-1">TEAMS_APP_PASSWORD</code>, and{" "}
-              <code className="rounded bg-background/60 px-1">TEAMS_TENANT_ID</code> in your
-              environment to enable connection.
+              Set <code className="rounded bg-background/60 px-1">NEXT_PUBLIC_APP_URL</code> (or deploy
+              on Vercel so <code className="rounded bg-background/60 px-1">VERCEL_URL</code> is
+              available) so OAuth links can be built.
             </p>
-          )}
+          ) : null}
         </div>
       )}
     </div>
