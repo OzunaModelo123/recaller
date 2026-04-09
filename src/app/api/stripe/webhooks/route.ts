@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { getStripe } from "@/lib/billing/stripe";
+import { getStripe, planTierFromStripePriceId } from "@/lib/billing/stripe";
+import { subscriptionIdFromInvoice } from "@/lib/billing/stripe-invoice";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -117,13 +118,20 @@ export async function POST(request: Request) {
       const quantity = sub.items.data[0]?.quantity ?? 1;
       const periodEnd = extractPeriodEnd(sub);
       const status = mapStatus(sub.status);
+      const priceId = sub.items.data[0]?.price?.id;
+      const planTier = planTierFromStripePriceId(priceId);
+
+      const patch: Record<string, unknown> = {
+        status,
+        seat_count: quantity,
+        seat_limit: quantity,
+        current_period_end: periodEnd,
+      };
+      if (planTier) patch.plan_tier = planTier;
 
       const orgId = sub.metadata?.orgId;
       if (orgId) {
-        await sb
-          .from("subscriptions")
-          .update({ status, seat_count: quantity, seat_limit: quantity, current_period_end: periodEnd })
-          .eq("org_id", orgId);
+        await sb.from("subscriptions").update(patch).eq("org_id", orgId);
       } else {
         const { data: row } = await sb
           .from("subscriptions")
@@ -131,10 +139,7 @@ export async function POST(request: Request) {
           .eq("stripe_subscription_id", sub.id)
           .maybeSingle();
         if (row) {
-          await sb
-            .from("subscriptions")
-            .update({ status, seat_count: quantity, seat_limit: quantity, current_period_end: periodEnd })
-            .eq("org_id", row.org_id);
+          await sb.from("subscriptions").update(patch).eq("org_id", row.org_id);
         }
       }
       break;
@@ -159,11 +164,9 @@ export async function POST(request: Request) {
 
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subId =
-        invoice.parent?.subscription_details?.subscription ??
-        null;
+      const subId = subscriptionIdFromInvoice(invoice);
 
-      if (subId && typeof subId === "string") {
+      if (subId) {
         const { data: row } = await sb
           .from("subscriptions")
           .select("org_id")
