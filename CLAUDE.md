@@ -18,7 +18,7 @@
 
 **Dev server:** After finishing an implementation update, **always restart the dev server** (`npm run dev`) so the user can immediately see changes. Kill any existing dev process first, then start fresh. The user should never have to start the server manually.
 
-**Tests:** `npm run test` (Vitest unit), `npm run build && npm run test:e2e` (Playwright on port **3333** via `next start`), `npm run test:ci` (full local CI). GitHub Actions template: `docs/github-actions-ci.yml` → copy to `.github/workflows/ci.yml`.
+**Tests:** `npm run test` (Vitest unit), `npm run build && npm run test:e2e` (Playwright on port **3333** via `next start`), `npm run test:ci` (full local CI). CI workflow: `.github/workflows/ci.yml` (see `docs/github-actions-ci.yml` for the template source).
 
 **Git / GitHub:** Do **not** push or open PRs to the remote repo until the **current phase** is finished and **`recaller-project.mdc`** marks it done (no mid-phase pushes unless the user explicitly asks). When a phase **is** complete: audit staged files → conventional commit → push → verify. Never commit `.env.local`.
 
@@ -26,7 +26,7 @@
 
 **CLI:** GitHub CLI may live at `/tmp/gh_2.89.0_macOS_arm64/bin/gh` on this machine; use `gh` if it is on your `PATH`.
 
-**Status (mirror `recaller-project.mdc`):** Phases 0–11 done; **next Phase 12** (Deployment + Polish — Sentry, vercel.json, production setup). Repo: https://github.com/OzunaModelo123/recaller
+**Status (mirror `recaller-project.mdc`):** Phases **0–12** done (roadmap complete). Repo: https://github.com/OzunaModelo123/recaller
 
 ## Project Instructions
 

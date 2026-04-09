@@ -57,7 +57,7 @@ export default async function ProfilePage() {
       );
       const sortedDays = [...days].sort().reverse();
       const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date(Date.now() - 86_400_000)
+      const yesterday = new Date(new Date().getTime() - 86_400_000)
         .toISOString()
         .slice(0, 10);
 

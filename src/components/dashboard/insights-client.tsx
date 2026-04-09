@@ -19,7 +19,9 @@ export function InsightsClient({
     if (!tz || tz === initialAnalytics.timeZone) return;
 
     let alive = true;
-    setIsRefreshing(true);
+    queueMicrotask(() => {
+      if (alive) setIsRefreshing(true);
+    });
 
     fetch(`/api/insights?tz=${encodeURIComponent(tz)}`, {
       method: "GET",

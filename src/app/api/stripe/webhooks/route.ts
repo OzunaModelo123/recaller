@@ -20,6 +20,11 @@ function mapStatus(stripeStatus: string): string {
 }
 
 function extractPeriodEnd(sub: Stripe.Subscription): string | null {
+  const periodEndSec = (sub as { current_period_end?: number })
+    .current_period_end;
+  if (typeof periodEndSec === "number" && periodEndSec > 0) {
+    return new Date(periodEndSec * 1000).toISOString();
+  }
   if (sub.cancel_at) return new Date(sub.cancel_at * 1000).toISOString();
   if (sub.billing_cycle_anchor) {
     const anchor = new Date(sub.billing_cycle_anchor * 1000);

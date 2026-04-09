@@ -39,7 +39,7 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 ## Active implementation focus
 
-**Phase 12 — Deployment + Polish** (next in sequence): Sentry error tracking, vercel.json function config, production Supabase migration, environment variable audit, domain setup. Do not start a new feature phase.
+**Roadmap phases 0–12 are complete.** Ongoing work is ops (Vercel/Supabase/Stripe dashboards), optional polish, and product iteration — not a new numbered build phase unless scope is redefined.
 
 ## Phase status
 
@@ -47,11 +47,11 @@ Other rules: `database-schema.mdc` (SQL, supabase, database.ts), `coding-standar
 
 Phase 8 (NotificationService + Nudges — unified `NotificationService` routing class with `resolvePlatform` (Slack→Teams→email fallback), `EmailNotifier` + Resend, React Email templates (Assignment, Nudge, WeeklyDigest, TrialExpiry), Inngest cron `sendNudges` every 6h with 48h stall + 72h suppression, `weeklyDigest` Monday 9am, wired into assignment creation + completions flow).
 
-Phase 9 (Billing — Stripe SDK v21 `stripe.ts` helpers, `/api/stripe/webhooks` for checkout.session.completed + subscription lifecycle + invoice.payment_failed, settings billing UI with pricing cards/trial countdown/seat usage/Manage Billing portal). Phase 10 (Insight Engine — 6 analytics query functions in `insightEngine.ts`, Claude-powered `generateMonthlyReport`, Inngest `monthlyReport` cron 1st-of-month, `/dashboard/insights` live recharts dashboard + report history). Phase 11 (Calendar + Bulk Invite + Profile — `AddToCalendar` .ics + Google Calendar in step flow, CSV bulk invite panel on `/dashboard/team`, `/employee/profile` with stats/connected platforms/edit form, employee sidebar Profile nav link).
+Phase 9 (Billing — Stripe SDK v21 `stripe.ts` helpers, `/api/stripe/webhooks` for checkout.session.completed + subscription lifecycle + invoice.payment_failed, settings billing UI with pricing cards/trial countdown/seat usage/Manage Billing portal). Phase 10 (Insight Engine — 6 analytics query functions in `insightEngine.ts`, Claude-powered `generateMonthlyReport`, Inngest `monthlyReport` cron 1st-of-month, `/dashboard/insights` live recharts dashboard + report history). Phase 11 (Calendar + Bulk Invite + Profile — `AddToCalendar` .ics + Google Calendar in step flow, CSV bulk invite panel on `/dashboard/team`, `/employee/profile` with stats/connected platforms/edit form, employee sidebar Profile nav link). Phase 12 (Deployment + polish — `@sentry/nextjs` with `withSentryConfig`, root + `src` instrumentation, `global-error`, Sentry tunnel excluded in proxy matcher, `vercel.json` function `maxDuration`, production env checklist `docs/production-env-checklist.md`, `.github/workflows/ci.yml`, Teams Adaptive Card link + notes for file/screenshot proof, resumable TUS URL helper for default + custom Supabase hosts, Stripe `current_period_end` in webhooks, ESLint/CI green).
 
-**Deferred env:** `SENTRY_AUTH_TOKEN` (12).
+**Optional in production:** set `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` on Vercel for source maps / release artifacts.
 
-**Next:** Phase 12 — Deployment + Polish → plan section `### Phase 12: Deployment + Polish`.
+**Next:** none (numbered roadmap complete); use product backlog / issues for follow-ups.
 
 ## When you finish or start a phase
 

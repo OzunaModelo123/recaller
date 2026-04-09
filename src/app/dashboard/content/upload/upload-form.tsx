@@ -19,6 +19,7 @@ import {
   optimizeMediaForTranscript,
   shouldOptimizeMediaForTranscript,
 } from "@/lib/content/clientMediaOptimizer";
+import { getResumableUploadEndpoint } from "@/lib/supabase/resumableStorageUrl";
 
 const STATUS_ORDER = ["queued", "transcribing", "analyzing", "ready"] as const;
 
@@ -31,13 +32,6 @@ const STATUS_ORDER = ["queued", "transcribing", "analyzing", "ready"] as const;
  * @see https://supabase.com/docs/guides/storage/uploads/resumable-uploads
  */
 const TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
-
-function getResumableUploadEndpoint(supabaseUrl: string): string {
-  const url = new URL(supabaseUrl);
-  url.hostname = `${url.hostname.split(".")[0]}.storage.supabase.co`;
-  url.pathname = "/storage/v1/upload/resumable";
-  return url.toString();
-}
 
 function storageContentType(contentType: string): string {
   return contentType.split(";")[0]?.trim() || "application/octet-stream";

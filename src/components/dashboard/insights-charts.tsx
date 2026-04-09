@@ -15,7 +15,6 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Activity,
   AlertTriangle,
   Clock,
   Layers,

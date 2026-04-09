@@ -107,10 +107,16 @@ function stepContainer(
     if (["file", "screenshot"].includes(step.proof_type)) {
       elements.push({
         type: "Input.Text",
+        id: `evidence_url_${step.step_number}`,
+        placeholder: "https://... (link to file or screenshot)",
+        label: "Link",
+      });
+      elements.push({
+        type: "Input.Text",
         id: `evidence_text_${step.step_number}`,
-        placeholder: "Paste a link to your file/screenshot, or describe what you did...",
+        placeholder: "Optional: describe what you shared or add context...",
         isMultiline: true,
-        label: "Evidence",
+        label: "Notes",
       });
     }
   }

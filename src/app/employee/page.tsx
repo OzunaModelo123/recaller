@@ -50,7 +50,9 @@ export default async function EmployeeHomePage() {
     .select("id")
     .eq("assigned_to", user.id);
   const myAssignmentIds = (myAssignmentRows ?? []).map((r) => r.id);
-  const weekAgoIso = new Date(Date.now() - 7 * 86400000).toISOString();
+  const weekAgoIso = new Date(
+    new Date().getTime() - 7 * 86400000,
+  ).toISOString();
   let stepsCompletedThisWeek = 0;
   if (myAssignmentIds.length > 0) {
     const { count } = await supabase

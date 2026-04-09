@@ -311,7 +311,7 @@ src/
 <tr><td align="center"><code>09</code></td><td>Stripe billing & seat management</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>10</code></td><td>AI insight engine & behavioral analytics</td><td align="center">&#9745;</td></tr>
 <tr><td align="center"><code>11</code></td><td>Calendar sync & bulk invitations</td><td align="center">&#9745;</td></tr>
-<tr><td align="center"><code>12</code></td><td>Deployment, monitoring & polish</td><td align="center">&#9744;</td></tr>
+<tr><td align="center"><code>12</code></td><td>Deployment, monitoring & polish</td><td align="center">&#9745;</td></tr>
 </table>
 
 <br />

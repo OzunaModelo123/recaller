@@ -263,7 +263,9 @@ export default async function DashboardPage() {
     const completed = allStepCompletions.length;
     overallPct = completionPercent(completed, expected);
 
-    const weekAgoIso = new Date(Date.now() - 7 * 86400000).toISOString();
+    const weekAgoIso = new Date(
+      new Date().getTime() - 7 * 86400000,
+    ).toISOString();
     completionsLast7d = allStepCompletions.filter(
       (c) => c.completed_at >= weekAgoIso,
     ).length;

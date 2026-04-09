@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendor bundles (minified; not linted as app source)
+    "public/ffmpeg/**",
   ]),
 ]);
 

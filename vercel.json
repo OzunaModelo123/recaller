@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/plans/generate/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/slack/events/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/teams/messages/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/teams/resync/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
