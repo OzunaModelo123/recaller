@@ -24,7 +24,7 @@
     "vercel:push-stripe-env": "node scripts/push-stripe-env-to-vercel.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
+    "@anthropic-ai/sdk": "^0.87.0",
     "@react-email/components": "^1.0.10",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/nextjs": "^10.46.0",
