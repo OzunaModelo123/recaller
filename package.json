@@ -14,7 +14,8 @@
     "test:ci": "npm run lint && npm run test && npm run build && npm run test:e2e",
     "test:phase2": "node scripts/phase2-smoke.mjs",
     "db:sync": "node scripts/sync-supabase.mjs",
-    "db:sync:local": "node scripts/sync-supabase.mjs --local"
+    "db:sync:local": "node scripts/sync-supabase.mjs --local",
+    "git:fix-credentials": "bash scripts/git-fix-github-credentials.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
