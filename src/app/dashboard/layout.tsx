@@ -79,14 +79,24 @@ export default async function DashboardLayout({
   }
 
   let orgName = "Organization";
+  let orgLogoUrl: string | null = null;
   if (profile?.org_id) {
     const { data: org } = await supabase
       .from("organisations")
-      .select("name")
+      .select("name, logo_url")
       .eq("id", profile.org_id)
       .single();
     orgName = org?.name ?? orgName;
+    orgLogoUrl = org?.logo_url ?? null;
   }
+
+  const orgInitials = orgName
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "—";
 
   const headerDateLabel = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -124,9 +134,23 @@ export default async function DashboardLayout({
               <p className="text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/70">
                 Workspace
               </p>
-              <p className="mt-0.5 truncate text-sm font-medium text-sidebar-foreground/90">
-                {orgName}
-              </p>
+              <div className="mt-1.5 flex items-center gap-2.5">
+                {orgLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- Supabase public URL
+                  <img
+                    src={orgLogoUrl}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-lg border border-sidebar-border object-cover"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-[10px] font-semibold text-sidebar-foreground/80">
+                    {orgInitials}
+                  </div>
+                )}
+                <p className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground/90">
+                  {orgName}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -202,9 +226,23 @@ export default async function DashboardLayout({
                     <p className="text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/70">
                       Workspace
                     </p>
-                    <p className="mt-0.5 truncate text-sm font-medium text-sidebar-foreground/90">
-                      {orgName}
-                    </p>
+                    <div className="mt-1.5 flex items-center gap-2.5">
+                      {orgLogoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- Supabase public URL
+                        <img
+                          src={orgLogoUrl}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-lg border border-sidebar-border object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-[10px] font-semibold text-sidebar-foreground/80">
+                          {orgInitials}
+                        </div>
+                      )}
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground/90">
+                        {orgName}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <Separator className="my-3 shrink-0 bg-sidebar-accent" />

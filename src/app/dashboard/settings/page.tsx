@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, Plug } from "lucide-react";
+import { Plug } from "lucide-react";
 
 import { PageHeader } from "@/components/design/page-header";
 import { EMPTY_ORG_CONTEXT } from "@/lib/ai/orgContext";
 import { CompanyContextSettingsPanel } from "@/components/dashboard/company-context-forms";
 import { AdminIntegrationsGrid } from "@/components/dashboard/admin-integrations-grid";
 import { BillingSection } from "@/components/dashboard/billing-section";
+import { OrganizationSettingsSection } from "@/components/dashboard/organization-settings-section";
 import { Button } from "@/components/ui/button";
 import { loadAdminIntegrationsForUser } from "@/lib/dashboard/load-admin-integrations";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +39,14 @@ export default async function SettingsPage({ searchParams }: Props) {
 
   let subscription = null;
   let teamMemberCount = 0;
+  let orgForSettings: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    industry: string | null;
+    size: string | null;
+  } | null = null;
+
   if (isAdmin && profile?.org_id) {
     const { data: sub } = await supabase
       .from("subscriptions")
@@ -53,6 +62,15 @@ export default async function SettingsPage({ searchParams }: Props) {
       .select("id", { count: "exact", head: true })
       .eq("org_id", profile.org_id);
     teamMemberCount = count ?? 0;
+
+    const { data: orgRow } = await supabase
+      .from("organisations")
+      .select("id, name, logo_url, industry, size")
+      .eq("id", profile.org_id)
+      .single();
+    if (orgRow) {
+      orgForSettings = orgRow;
+    }
   }
 
   const starterPriceId = process.env.STRIPE_STARTER_PRICE_ID ?? "";
@@ -65,7 +83,11 @@ export default async function SettingsPage({ searchParams }: Props) {
         subtitle="Organization profile, AI context, integrations, and billing."
       />
 
-      {isAdmin && <CompanyContextSettingsPanel initial={initial} />}
+      {isAdmin && (
+        <div id="company-context" className="scroll-mt-24">
+          <CompanyContextSettingsPanel initial={initial} />
+        </div>
+      )}
 
       {isAdmin && integrationsData ? (
         <div>
@@ -95,18 +117,15 @@ export default async function SettingsPage({ searchParams }: Props) {
         />
       )}
 
-      <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary border border-border">
-          <Building2 className="h-5 w-5 text-primary" />
-        </div>
-        <h3 className="mt-4 text-base font-semibold text-foreground">Organization</h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Manage your org profile, name, and preferences.
-        </p>
-        <div className="mt-4 inline-flex rounded-lg border border-border bg-secondary px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-          Coming soon
-        </div>
-      </div>
+      {isAdmin && orgForSettings ? (
+        <OrganizationSettingsSection
+          orgId={orgForSettings.id}
+          initialName={orgForSettings.name}
+          initialLogoUrl={orgForSettings.logo_url}
+          industry={orgForSettings.industry}
+          size={orgForSettings.size}
+        />
+      ) : null}
     </div>
   );
 }
