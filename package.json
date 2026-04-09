@@ -15,7 +15,13 @@
     "test:phase2": "node scripts/phase2-smoke.mjs",
     "db:sync": "node scripts/sync-supabase.mjs",
     "db:sync:local": "node scripts/sync-supabase.mjs --local",
-    "git:fix-credentials": "bash scripts/git-fix-github-credentials.sh"
+    "git:fix-credentials": "bash scripts/git-fix-github-credentials.sh",
+    "stripe:setup-cli": "bash scripts/setup-stripe-cli.sh",
+    "stripe:listen": "bash scripts/stripe-listen.sh",
+    "stripe:webhook-secret": "node scripts/print-stripe-local-webhook-secret.mjs",
+    "stripe:ensure-prices": "node scripts/ensure-stripe-prices.mjs",
+    "stripe:ensure-dashboard-webhook": "node scripts/ensure-stripe-dashboard-webhook.mjs",
+    "vercel:push-stripe-env": "node scripts/push-stripe-env-to-vercel.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

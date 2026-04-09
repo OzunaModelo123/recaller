@@ -43,6 +43,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Stripe CLI binary (see scripts/setup-stripe-cli in docs or download to .local/bin/stripe)
+.local/
+
 # Cursor — commit `.cursor/rules/*.mdc` only; plans & other IDE data stay local
 .cursor/*
 !.cursor/rules/

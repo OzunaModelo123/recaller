@@ -29,7 +29,8 @@ Apply to **Production** (and **Preview** if you want preview deploys fully wired
 
 - **Webhook endpoint:** `https://{your-domain}/api/stripe/webhooks`
 - Events: checkout completion, subscription updated/deleted, invoice payment failed (as implemented in [`src/app/api/stripe/webhooks/route.ts`](../src/app/api/stripe/webhooks/route.ts)).
-- Set `STRIPE_WEBHOOK_SECRET` from the webhook signing secret.
+- **`STRIPE_WEBHOOK_SECRET` differs by environment:** (1) **Local:** run `npm run stripe:listen` in a second terminal and set `STRIPE_WEBHOOK_SECRET` to the value from `npm run stripe:webhook-secret` (Stripe CLI tunnel). (2) **Vercel Production:** use the signing secret from **Stripe Dashboard → Developers → Webhooks** for your deployed URL, or create the endpoint with `node scripts/ensure-stripe-dashboard-webhook.mjs` once and copy the printed `whsec_…`.
+- **Sync env to Vercel (Stripe only):** after linking the repo (`npx vercel link`), set `STRIPE_VERCEL_WEBHOOK_SECRET` to the **Dashboard** `whsec` and run `node scripts/push-stripe-env-to-vercel.mjs` (or add variables in the Vercel UI).
 - **`STRIPE_STARTER_PRICE_ID` / `STRIPE_GROWTH_PRICE_ID`:** Stripe Dashboard → Products → copy the **Price** id (not Product id) for each plan. Starter should be **monthly** recurring per seat; Growth should be **annual** recurring per seat, matching copy in [`src/lib/billing/stripe.ts`](../src/lib/billing/stripe.ts) (`PLANS`). These ids sync `plan_tier` when customers change plans in the Billing Portal.
 - **Customer portal:** Stripe Dashboard → Settings → Billing → Customer portal — enable so “Manage billing” in Settings works.
 - **Test mode:** Use test keys and test Price ids on Preview/staging; live keys and live Price ids on Production.
