@@ -10,6 +10,10 @@ import {
 import { notificationService } from "@/lib/notifications/NotificationService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 
 async function requireOrgAdmin() {
   const supabase = await createClient();
@@ -40,7 +44,10 @@ export async function cancelAssignmentsAction(assignmentIds: string[]) {
     .in("id", ids)
     .eq("org_id", ctx.orgId);
 
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    logPostgrestError("assignments/cancel", error);
+    return { ok: false as const, error: sanitizedPostgrestError(error) };
+  }
   revalidatePath("/dashboard/assignments");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/team");
@@ -168,7 +175,8 @@ export async function createAssignmentsAction(input: {
         error: "One or more selected employees already have an active assignment for this plan.",
       };
     }
-    return { ok: false as const, error: error.message };
+    logPostgrestError("assignments/bulkCreate", error);
+    return { ok: false as const, error: sanitizedPostgrestError(error) };
   }
 
   if (createdRows?.length) {
@@ -290,7 +298,8 @@ export async function assignPlanToEmployeeAction(input: {
           "This employee already has an active assignment for this plan. Cancel it first or pick another person.",
       };
     }
-    return { ok: false as const, error: error.message };
+    logPostgrestError("assignments/createSingle", error);
+    return { ok: false as const, error: sanitizedPostgrestError(error) };
   }
 
   if (created) {
@@ -426,7 +435,10 @@ export async function createGroupAction(name: string) {
     name: n,
     created_by: ctx.userId,
   });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    logPostgrestError("assignments/createGroup", error);
+    return { ok: false as const, error: sanitizedPostgrestError(error) };
+  }
   revalidatePath("/dashboard/assignments");
   return { ok: true as const };
 }
@@ -457,7 +469,8 @@ export async function addGroupMemberAction(groupId: string, userId: string) {
   });
   if (error) {
     if (error.code === "23505") return { ok: true as const };
-    return { ok: false as const, error: error.message };
+    logPostgrestError("assignments/addGroupMember", error);
+    return { ok: false as const, error: sanitizedPostgrestError(error) };
   }
   revalidatePath("/dashboard/assignments");
   return { ok: true as const };
@@ -473,7 +486,10 @@ export async function removeGroupMemberAction(groupId: string, userId: string) {
     .eq("group_id", groupId)
     .eq("user_id", userId);
 
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    logPostgrestError("assignments/removeGroupMember", error);
+    return { ok: false as const, error: sanitizedPostgrestError(error) };
+  }
   revalidatePath("/dashboard/assignments");
   return { ok: true as const };
 }

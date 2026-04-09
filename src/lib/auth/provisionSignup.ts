@@ -1,5 +1,9 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 
 export type ProvisionResult = { ok: true } | { ok: false; error: string };
 
@@ -32,7 +36,8 @@ export async function provisionSignupIfNeeded(
       .maybeSingle();
 
     if (existingErr) {
-      return { ok: false, error: existingErr.message };
+      logPostgrestError("provisionSignup existing user", existingErr);
+      return { ok: false, error: sanitizedPostgrestError(existingErr) };
     }
     if (existing) {
       return { ok: true };
@@ -77,7 +82,8 @@ export async function provisionSignupIfNeeded(
       });
 
       if (userError) {
-        return { ok: false, error: userError.message };
+        logPostgrestError("provisionSignup employee insert", userError);
+        return { ok: false, error: sanitizedPostgrestError(userError) };
       }
 
       await admin
@@ -101,9 +107,10 @@ export async function provisionSignupIfNeeded(
       .single();
 
     if (orgError || !org) {
+      if (orgError) logPostgrestError("provisionSignup org insert", orgError);
       return {
         ok: false,
-        error: orgError?.message ?? "Could not create organisation",
+        error: orgError ? sanitizedPostgrestError(orgError) : "Could not create organisation",
       };
     }
 
@@ -117,7 +124,8 @@ export async function provisionSignupIfNeeded(
 
     if (userError) {
       await admin.from("organisations").delete().eq("id", org.id);
-      return { ok: false, error: userError.message };
+      logPostgrestError("provisionSignup employer insert", userError);
+      return { ok: false, error: sanitizedPostgrestError(userError) };
     }
 
     const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -136,11 +144,15 @@ export async function provisionSignupIfNeeded(
     if (subscriptionError) {
       await admin.from("users").delete().eq("id", user.id);
       await admin.from("organisations").delete().eq("id", org.id);
-      return { ok: false, error: subscriptionError.message };
+      logPostgrestError("provisionSignup subscription upsert", subscriptionError);
+      return { ok: false, error: sanitizedPostgrestError(subscriptionError) };
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: msg };
+    console.error("[provisionSignup]", e);
+    return {
+      ok: false,
+      error: "Account setup failed. Please try again or contact support.",
+    };
   }
 
   return { ok: true };

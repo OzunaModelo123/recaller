@@ -8,6 +8,10 @@ import { NextResponse } from "next/server";
 import { verifyTeamsJwt } from "@/lib/teams/verifyJwt";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
+import {
   evidenceSatisfiesProof,
   normalizeProofType,
 } from "@/lib/proof";
@@ -307,7 +311,8 @@ async function completeStepFromTeams(
     if (insErr.code === "23505") {
       return { ok: false, error: "This step is already completed." };
     }
-    return { ok: false, error: insErr.message };
+    logPostgrestError("api/teams/messages completeStep", insErr);
+    return { ok: false, error: sanitizedPostgrestError(insErr) };
   }
 
   const { count: totalSteps } = await sb

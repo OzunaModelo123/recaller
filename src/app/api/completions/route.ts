@@ -7,6 +7,10 @@ import {
   type StepEvidence,
 } from "@/lib/proof";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 import type { Json } from "@/types/database";
 import { notifyAdminSlackChannelOnCompletion } from "@/lib/notifications/notify-admin-slack";
 import { refreshSlackAssignmentDmAfterWebCompletion } from "@/lib/notifications/notify-employee-slack-assignment";
@@ -32,11 +36,25 @@ export async function POST(request: Request) {
   }
 
   const assignmentId = body.assignmentId?.trim();
-  const stepNumber = body.stepNumber;
+  const stepRaw = body.stepNumber;
+  const stepNumber =
+    typeof stepRaw === "number"
+      ? stepRaw
+      : typeof stepRaw === "string"
+        ? Number.parseInt(stepRaw, 10)
+        : NaN;
   const platform = body.platform ?? "web";
-  if (!assignmentId || typeof stepNumber !== "number" || stepNumber < 1) {
+  if (
+    !assignmentId ||
+    !Number.isInteger(stepNumber) ||
+    stepNumber < 1 ||
+    stepNumber > 10
+  ) {
     return NextResponse.json(
-      { error: "assignmentId and stepNumber are required" },
+      {
+        error:
+          "assignmentId and a valid stepNumber (integer 1–10) are required",
+      },
       { status: 400 },
     );
   }
@@ -137,7 +155,11 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    return NextResponse.json({ error: insErr.message }, { status: 500 });
+    logPostgrestError("api/completions insert", insErr);
+    return NextResponse.json(
+      { error: sanitizedPostgrestError(insErr) },
+      { status: 500 },
+    );
   }
 
   const { count: totalSteps, error: tsErr } = await supabase

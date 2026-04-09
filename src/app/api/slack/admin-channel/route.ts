@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 
 export const runtime = "nodejs";
 
@@ -45,7 +49,11 @@ export async function POST(request: Request) {
     .eq("id", profile.org_id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    logPostgrestError("api/slack/admin-channel", error);
+    return NextResponse.json(
+      { error: sanitizedPostgrestError(error) },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ ok: true });

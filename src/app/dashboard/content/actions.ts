@@ -5,6 +5,10 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
+import {
   extractTranscriptFromFile,
   extractTranscriptFromUrl,
   runBackgroundMediaTranscript,
@@ -72,13 +76,17 @@ export async function ingestContentUrl(url: string): Promise<IngestResult> {
       .select("id")
       .single();
     if (error) {
-      return { ok: false, error: error.message };
+      logPostgrestError("content/ingestContentUrl", error);
+      return { ok: false, error: sanitizedPostgrestError(error) };
     }
     revalidatePath("/dashboard/content");
     return { ok: true, contentItemId: row!.id, pollStatus: false };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: msg };
+    console.error("[content/ingestContentUrl]", e);
+    return {
+      ok: false,
+      error: "Could not import that URL. Check the link and try again.",
+    };
   }
 }
 
@@ -175,12 +183,16 @@ export async function prepareContentFileUpload(
       .single();
 
     if (insErr || !row) {
+      if (insErr) logPostgrestError("content/prepareContentFileUpload", insErr);
       console.error("[content] failed to create content record", {
         fileName,
         fileSize,
         error: insErr?.message,
       });
-      return { ok: false, error: insErr?.message ?? "Could not create content record." };
+      return {
+        ok: false,
+        error: insErr ? sanitizedPostgrestError(insErr) : "Could not create content record.",
+      };
     }
 
     const safeName = name.replace(/[^\w.\-()+ ]/g, "_");
@@ -279,7 +291,8 @@ export async function deleteContentItem(
       .eq("content_item_id", contentItemId);
 
     if (plansErr) {
-      return { ok: false, error: plansErr.message };
+      logPostgrestError("content/deleteContentItem plans", plansErr);
+      return { ok: false, error: sanitizedPostgrestError(plansErr) };
     }
 
     const planIds = (plans ?? []).map((plan) => plan.id);
@@ -292,7 +305,8 @@ export async function deleteContentItem(
         .in("plan_id", planIds);
 
       if (assignmentsErr) {
-        return { ok: false, error: assignmentsErr.message };
+        logPostgrestError("content/deleteContentItem assignments", assignmentsErr);
+        return { ok: false, error: sanitizedPostgrestError(assignmentsErr) };
       }
 
       const assignmentIds = (assignments ?? []).map((assignment) => assignment.id);
@@ -303,7 +317,8 @@ export async function deleteContentItem(
           .delete()
           .in("assignment_id", assignmentIds);
         if (stepErr) {
-          return { ok: false, error: stepErr.message };
+          logPostgrestError("content/deleteContentItem step_completions", stepErr);
+          return { ok: false, error: sanitizedPostgrestError(stepErr) };
         }
 
         const { error: assignmentDeleteErr } = await admin
@@ -312,7 +327,8 @@ export async function deleteContentItem(
           .eq("org_id", orgId)
           .in("id", assignmentIds);
         if (assignmentDeleteErr) {
-          return { ok: false, error: assignmentDeleteErr.message };
+          logPostgrestError("content/deleteContentItem assignments del", assignmentDeleteErr);
+          return { ok: false, error: sanitizedPostgrestError(assignmentDeleteErr) };
         }
       }
 
@@ -321,7 +337,8 @@ export async function deleteContentItem(
         .delete()
         .in("plan_id", planIds);
       if (planStepErr) {
-        return { ok: false, error: planStepErr.message };
+        logPostgrestError("content/deleteContentItem plan_steps", planStepErr);
+        return { ok: false, error: sanitizedPostgrestError(planStepErr) };
       }
 
       const { error: planEmbeddingErr } = await admin
@@ -330,7 +347,8 @@ export async function deleteContentItem(
         .eq("org_id", orgId)
         .in("plan_id", planIds);
       if (planEmbeddingErr) {
-        return { ok: false, error: planEmbeddingErr.message };
+        logPostgrestError("content/deleteContentItem plan_embeddings", planEmbeddingErr);
+        return { ok: false, error: sanitizedPostgrestError(planEmbeddingErr) };
       }
 
       const { error: planDeleteErr } = await admin
@@ -339,7 +357,8 @@ export async function deleteContentItem(
         .eq("org_id", orgId)
         .in("id", planIds);
       if (planDeleteErr) {
-        return { ok: false, error: planDeleteErr.message };
+        logPostgrestError("content/deleteContentItem plans", planDeleteErr);
+        return { ok: false, error: sanitizedPostgrestError(planDeleteErr) };
       }
     }
 
@@ -349,7 +368,8 @@ export async function deleteContentItem(
       .eq("org_id", orgId)
       .eq("content_item_id", contentItemId);
     if (contentEmbeddingErr) {
-      return { ok: false, error: contentEmbeddingErr.message };
+      logPostgrestError("content/deleteContentItem content_embeddings", contentEmbeddingErr);
+      return { ok: false, error: sanitizedPostgrestError(contentEmbeddingErr) };
     }
 
     await admin.storage
@@ -364,7 +384,8 @@ export async function deleteContentItem(
       .eq("org_id", orgId);
 
     if (deleteErr) {
-      return { ok: false, error: deleteErr.message };
+      logPostgrestError("content/deleteContentItem content_items", deleteErr);
+      return { ok: false, error: sanitizedPostgrestError(deleteErr) };
     }
 
     revalidatePath("/dashboard/content");
@@ -425,7 +446,10 @@ export async function finalizeContentFileUpload(
             storagePath,
             error: dlErr?.message,
           });
-          return { ok: false, error: dlErr?.message ?? "Uploaded file not found in storage." };
+          return {
+            ok: false,
+            error: "Uploaded file not found in storage or could not be downloaded.",
+          };
         }
 
         const buffer = Buffer.from(await blob.arrayBuffer());
@@ -440,7 +464,8 @@ export async function finalizeContentFileUpload(
           .update({ transcript, status: "ready", file_path: null })
           .eq("id", contentItemId);
         if (upErr) {
-          return { ok: false, error: upErr.message };
+          logPostgrestError("content/finalizeContentFileUpload update", upErr);
+          return { ok: false, error: sanitizedPostgrestError(upErr) };
         }
         revalidatePath("/dashboard/content");
         return { ok: true, contentItemId, pollStatus: false };
@@ -452,7 +477,10 @@ export async function finalizeContentFileUpload(
         });
         await supabase.storage.from(CONTENT_FILES_BUCKET).remove([storagePath]).catch(() => undefined);
         await supabase.from("content_items").delete().eq("id", contentItemId);
-        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+        return {
+          ok: false,
+          error: "Could not extract text from this file. Try another format.",
+        };
       }
     }
 
@@ -475,6 +503,7 @@ export async function finalizeContentFileUpload(
         .eq("id", contentItemId);
 
       if (upRowErr) {
+        logPostgrestError("content/finalizeContentFileUpload media row", upRowErr);
         console.error("[content] failed to persist media file_path", {
           contentItemId,
           storagePath,
@@ -485,7 +514,7 @@ export async function finalizeContentFileUpload(
           .remove(uploadedAssets.length > 0 ? uploadedAssets.map((asset) => asset.path) : [storagePath])
           .catch(() => undefined);
         await supabase.from("content_items").delete().eq("id", contentItemId);
-        return { ok: false, error: upRowErr.message };
+        return { ok: false, error: sanitizedPostgrestError(upRowErr) };
       }
 
       after(async () => {

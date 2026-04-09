@@ -6,6 +6,10 @@ import {
   normalizeProofType,
 } from "@/lib/proof";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 import { openSlackBotToken } from "@/lib/slack/bot-token-crypto";
 import {
   buildAssignmentMessage,
@@ -377,7 +381,8 @@ async function callCompletionsApi(
     if (insErr.code === "23505") {
       return { ok: false, error: "Already completed" };
     }
-    return { ok: false, error: insErr.message };
+    logPostgrestError("slack/callCompletionsApi", insErr);
+    return { ok: false, error: sanitizedPostgrestError(insErr) };
   }
 
   const { count: totalSteps } = await sb

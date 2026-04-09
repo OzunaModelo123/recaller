@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 
 export type InviteResult = { ok: true } | { ok: false; error: string };
 
@@ -72,9 +76,10 @@ export async function inviteTeamMember(
       .eq("id", pending.id);
 
     if (expireErr) {
+      logPostgrestError("team/invite expire pending", expireErr);
       return {
         ok: false,
-        error: `Could not expire existing invitation: ${expireErr.message}`,
+        error: sanitizedPostgrestError(expireErr),
       };
     }
   }
@@ -87,7 +92,8 @@ export async function inviteTeamMember(
   });
 
   if (invErr) {
-    return { ok: false, error: invErr.message };
+    logPostgrestError("team/invite insert invitation", invErr);
+    return { ok: false, error: sanitizedPostgrestError(invErr) };
   }
 
   const { error: invAuthErr } = await admin.auth.admin.inviteUserByEmail(email, {
@@ -110,7 +116,11 @@ export async function inviteTeamMember(
           "This email is already registered in Supabase Auth. Remove the user from the Auth dashboard or use a different email.",
       };
     }
-    return { ok: false, error: invAuthErr.message };
+    console.error("[team/invite] inviteUserByEmail", invAuthErr);
+    return {
+      ok: false,
+      error: "Could not send the invite email. Check Auth settings and try again.",
+    };
   }
 
   revalidatePath("/dashboard/team");

@@ -59,9 +59,8 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[Stripe Webhook] Signature verification failed:", msg);
-    return NextResponse.json({ error: `Webhook Error: ${msg}` }, { status: 400 });
+    console.error("[Stripe Webhook] Signature verification failed:", err);
+    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
   const sb = createAdminClient();

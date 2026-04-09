@@ -155,9 +155,10 @@ export async function verifyTeamsJwt(
 
     return { valid: true, payload };
   } catch (err) {
+    console.error("[teams/verifyJwt]", err);
     return {
       valid: false,
-      reason: `Verification error: ${err instanceof Error ? err.message : String(err)}`,
+      reason: "Token verification failed",
     };
   }
 }

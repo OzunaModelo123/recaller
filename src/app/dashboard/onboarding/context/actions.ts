@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import type { OrgContext } from "@/lib/ai/orgContext";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 
 export type SaveContextResult = { ok: true } | { ok: false; error: string };
 
@@ -42,7 +46,10 @@ export async function saveCompanyContext(
     .update(update)
     .eq("id", profile.org_id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    logPostgrestError("onboarding/saveCompanyContext", error);
+    return { ok: false, error: sanitizedPostgrestError(error) };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");

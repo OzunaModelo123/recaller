@@ -32,7 +32,10 @@ export async function GET(request: Request) {
     const analytics = await loadLiveAnalytics(profile.org_id, tz);
     return NextResponse.json(analytics);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load insights";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[api/insights]", error);
+    return NextResponse.json(
+      { error: "Failed to load insights" },
+      { status: 500 },
+    );
   }
 }

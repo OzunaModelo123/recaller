@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { embedApprovedPlan } from "@/lib/ai/embeddingService";
 import { defaultProofForStep } from "@/lib/proof";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logPostgrestError,
+  sanitizedPostgrestError,
+} from "@/lib/supabase/sanitized-error";
 import type { Json } from "@/types/database";
 
 type StepRow = {
@@ -99,10 +103,16 @@ export async function savePlan(planId: string, state: SavePlanState): Promise<Ac
     })
     .eq("id", planId);
 
-  if (upErr) return { ok: false, error: upErr.message };
+  if (upErr) {
+    logPostgrestError("plans/savePlan update", upErr);
+    return { ok: false, error: sanitizedPostgrestError(upErr) };
+  }
 
   const { error: delErr } = await supabase.from("plan_steps").delete().eq("plan_id", planId);
-  if (delErr) return { ok: false, error: delErr.message };
+  if (delErr) {
+    logPostgrestError("plans/savePlan delete steps", delErr);
+    return { ok: false, error: sanitizedPostgrestError(delErr) };
+  }
 
   const inserts = state.steps.map((s) => ({
     plan_id: planId,
@@ -118,12 +128,16 @@ export async function savePlan(planId: string, state: SavePlanState): Promise<Ac
   }));
 
   const { error: insErr } = await supabase.from("plan_steps").insert(inserts);
-  if (insErr) return { ok: false, error: insErr.message };
+  if (insErr) {
+    logPostgrestError("plans/savePlan insert steps", insErr);
+    return { ok: false, error: sanitizedPostgrestError(insErr) };
+  }
 
   try {
     await embedApprovedPlan(planId, orgId);
   } catch (e: unknown) {
-    return { ok: false, error: e instanceof Error ? e.message : "Embedding failed" };
+    console.error("[plans/savePlan] embedApprovedPlan", e);
+    return { ok: false, error: "Plan saved but embedding failed. Try saving again." };
   }
 
   revalidatePath(`/dashboard/plans/${planId}`);
@@ -159,7 +173,10 @@ export async function resetPlanToDraft(planId: string): Promise<ActionResult> {
     })
     .eq("id", planId);
 
-  if (upErr) return { ok: false, error: upErr.message };
+  if (upErr) {
+    logPostgrestError("plans/resetPlanToDraft update", upErr);
+    return { ok: false, error: sanitizedPostgrestError(upErr) };
+  }
 
   await supabase.from("plan_steps").delete().eq("plan_id", planId);
 
@@ -195,7 +212,10 @@ export async function resetPlanToDraft(planId: string): Promise<ActionResult> {
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
   const { error: insErr } = await supabase.from("plan_steps").insert(inserts);
-  if (insErr) return { ok: false, error: insErr.message };
+  if (insErr) {
+    logPostgrestError("plans/resetPlanToDraft insert", insErr);
+    return { ok: false, error: sanitizedPostgrestError(insErr) };
+  }
 
   revalidatePath(`/dashboard/plans/${planId}`);
   return { ok: true };
