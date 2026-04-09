@@ -51,19 +51,21 @@ export async function startCheckoutAction(formData: FormData) {
     return redirect("/dashboard/settings?billing=error");
   }
 
+  // Do not wrap redirect() in try/catch — in Next.js it throws to navigate, and a catch would treat success as failure.
+  let checkoutUrl: string;
   try {
-    const url = await createCheckoutSession({
+    checkoutUrl = await createCheckoutSession({
       orgId: ctx.orgId,
       priceId,
       seatCount,
       userEmail: ctx.email,
       planTier,
     });
-    return redirect(url);
   } catch (e) {
     console.error("[Billing] Checkout session creation failed", e);
     return redirect("/dashboard/settings?billing=error");
   }
+  redirect(checkoutUrl);
 }
 
 export async function manageBillingAction() {
@@ -72,13 +74,14 @@ export async function manageBillingAction() {
     return redirect("/dashboard/settings?billing=error");
   }
 
+  let portalUrl: string;
   try {
-    const url = await createBillingPortalSession(ctx.stripeCustomerId);
-    return redirect(url);
+    portalUrl = await createBillingPortalSession(ctx.stripeCustomerId);
   } catch (e) {
     console.error("[Billing] Portal session creation failed", e);
     return redirect("/dashboard/settings?billing=error");
   }
+  redirect(portalUrl);
 }
 
 /**
