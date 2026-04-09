@@ -7,6 +7,7 @@ import {
   Flame,
 } from "lucide-react";
 
+import { PageHeader } from "@/components/design/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 
@@ -81,43 +82,41 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          Profile
-        </h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          Manage your profile, view your stats, and connected platforms.
-        </p>
-      </div>
+      <PageHeader
+        title="Profile"
+        subtitle="Your stats, personal details, and connected platforms."
+      />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <StatCard
-          icon={<Award className="h-5 w-5 text-green-500" />}
-          label="Plans Completed"
+          icon={<Award className="h-5 w-5 text-primary" />}
+          label="Plans completed"
           value={String(completedAssignments)}
         />
         <StatCard
-          icon={<BarChart3 className="h-5 w-5 text-blue-500" />}
-          label="Completion Rate"
+          icon={<BarChart3 className="h-5 w-5 text-primary" />}
+          label="Completion rate"
           value={`${completionRate}%`}
         />
         <StatCard
-          icon={<Clock className="h-5 w-5 text-purple-500" />}
-          label="Steps Completed"
+          icon={<Clock className="h-5 w-5 text-primary" />}
+          label="Steps completed"
           value={String(totalCompletedSteps)}
         />
         <StatCard
-          icon={<Flame className="h-5 w-5 text-orange-500" />}
-          label="Current Streak"
+          icon={<Flame className="h-5 w-5 text-primary" />}
+          label="Current streak"
           value={`${currentStreak} day${currentStreak !== 1 ? "s" : ""}`}
         />
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <UserCircle className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-base font-semibold text-foreground">
-            Personal Info
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+        <div className="mb-5 flex items-center gap-3 border-b border-border pb-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted/40">
+            <UserCircle className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
+            Personal info
           </h2>
         </div>
         <ProfileForm
@@ -128,9 +127,9 @@ export default async function ProfilePage() {
         />
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-4 text-base font-semibold text-foreground">
-          Connected Platforms
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+        <h2 className="mb-4 text-base font-semibold tracking-tight text-foreground">
+          Connected platforms
         </h2>
         <div className="space-y-3">
           <PlatformRow
@@ -157,10 +156,10 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] sm:p-5">
       <div className="flex items-center gap-2">{icon}</div>
-      <p className="mt-2 text-lg font-bold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">{value}</p>
+      <p className="text-xs leading-snug text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -176,7 +175,7 @@ function PlatformRow({
     <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
       <span className="text-sm font-medium text-foreground">{name}</span>
       {connected ? (
-        <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+        <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
           Connected
         </span>
       ) : (

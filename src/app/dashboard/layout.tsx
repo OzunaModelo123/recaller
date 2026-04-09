@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Menu, LogOut, ChevronRight } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { DashboardHeaderQuickLinks } from "@/components/dashboard/dashboard-header-quick-links";
+import {
+  DashboardHeaderContext,
+  DashboardMobilePageLabel,
+} from "@/components/dashboard/dashboard-header-context";
 import { DashboardSidebarNav } from "@/components/dashboard/dashboard-sidebar-nav";
 import {
   Sheet,
@@ -85,6 +88,12 @@ export default async function DashboardLayout({
     orgName = org?.name ?? orgName;
   }
 
+  const headerDateLabel = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
   async function logout() {
     "use server";
     const scoped = await createClient();
@@ -144,22 +153,23 @@ export default async function DashboardLayout({
                 {role === "super_admin" ? "Super Admin" : role.charAt(0).toUpperCase() + role.slice(1)}
               </p>
             </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <form action={logout}>
+            <form action={logout}>
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <Button
+                    type="submit"
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground"
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
-                </form>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
-                Sign out
-              </TooltipContent>
-            </Tooltip>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  Sign out
+                </TooltipContent>
+              </Tooltip>
+            </form>
           </div>
         </div>
       </aside>
@@ -167,24 +177,27 @@ export default async function DashboardLayout({
       {/* Main content */}
       <div className="flex flex-1 flex-col">
         {/* Mobile header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl md:hidden">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-background/85 px-4 py-3 backdrop-blur-xl md:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Sheet>
               <SheetTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-9 w-9">
+                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[min(100%,280px)] border-sidebar-border bg-sidebar p-0">
-                <SheetHeader className="px-5 pt-5">
-                  <SheetTitle className="flex items-center gap-2.5 text-left">
+              <SheetContent
+                side="left"
+                className="flex w-[min(100%,300px)] flex-col border-sidebar-border bg-sidebar p-0"
+              >
+                <SheetHeader className="shrink-0 border-b border-sidebar-border px-5 pb-4 pt-5">
+                  <SheetTitle className="flex items-center gap-2.5 text-left text-sidebar-foreground">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent text-xs font-bold text-sidebar-foreground shadow-sm">
                       R
                     </div>
                     Recaller
                   </SheetTitle>
                 </SheetHeader>
-                <div className="px-4 pt-4">
+                <div className="shrink-0 px-4 pt-4">
                   <div className="rounded-xl border border-sidebar-border bg-sidebar-accent px-3 py-2.5">
                     <p className="text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/70">
                       Workspace
@@ -194,48 +207,40 @@ export default async function DashboardLayout({
                     </p>
                   </div>
                 </div>
-                <Separator className="my-3 mx-4 bg-sidebar-accent" />
-                <DashboardSidebarNav isAdmin={isAdmin} className="px-4" />
+                <Separator className="my-3 shrink-0 bg-sidebar-accent" />
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+                  <DashboardSidebarNav isAdmin={isAdmin} />
+                </div>
               </SheetContent>
             </Sheet>
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent text-xs font-bold text-sidebar-foreground">
+            <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent text-[10px] font-bold text-sidebar-foreground">
                 R
               </div>
+              <DashboardMobilePageLabel />
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-sidebar-foreground/70">
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="max-w-[80px] truncate text-xs font-medium text-muted-foreground">
               {fullName.split(" ")[0]}
             </span>
             <Avatar className="h-7 w-7">
-              <AvatarFallback className="bg-sidebar-accent text-[9px] font-bold text-sidebar-foreground">
+              <AvatarFallback className="bg-secondary text-[9px] font-bold text-foreground">
                 {getInitials(fullName)}
               </AvatarFallback>
             </Avatar>
           </div>
         </header>
 
-        {/* Desktop top bar — breadcrumb area */}
-        <header className="hidden border-b border-border bg-card/60 backdrop-blur-sm md:flex md:flex-wrap md:items-center md:justify-between md:gap-3 md:px-8 md:py-4">
-          <div className="flex items-center gap-2 text-base text-muted-foreground">
-            <Link href="/dashboard" className="transition-colors hover:text-foreground/90">
-              {orgName}
-            </Link>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span className="font-semibold text-foreground">Dashboard</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            {isAdmin ? <DashboardHeaderQuickLinks /> : null}
-            <span className="text-sm text-muted-foreground">
-              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
-            </span>
-          </div>
-        </header>
+        <DashboardHeaderContext
+          orgName={orgName}
+          isAdmin={isAdmin}
+          headerDateLabel={headerDateLabel}
+        />
 
         {/* Page content */}
-        <main className="relative z-10 flex-1 p-6 md:p-8">
-          <div className="relative max-w-6xl">{children}</div>
+        <main className="relative z-10 flex-1 p-5 sm:p-6 md:p-8">
+          <div className="relative mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

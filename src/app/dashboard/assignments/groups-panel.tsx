@@ -74,8 +74,8 @@ export function GroupsPanel({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-none">
-      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-6 py-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary">
           <UsersRound className="h-[18px] w-[18px] text-primary" />
         </div>

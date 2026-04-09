@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Clock, ExternalLink, FileText } from "lucide-react";
+import { PageHeader } from "@/components/design/page-header";
 import { GeneratePlanButton } from "@/components/dashboard/generate-plan-button";
 import { createClient } from "@/lib/supabase/server";
 import { ContentDeleteButton } from "../content-delete-button";
@@ -56,20 +57,18 @@ export default async function ContentDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="space-y-4">
         <Link
           href="/dashboard/content"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Content library
         </Link>
 
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          {item.title}
-        </h1>
+        <PageHeader title={item.title} />
 
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span
             className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium capitalize ${statusColor}`}
           >
@@ -94,7 +93,7 @@ export default async function ContentDetailPage({ params }: Props) {
         {item.source_url && (
           <a
             href={item.source_url}
-            className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+            className="inline-flex max-w-full items-center gap-1.5 break-all text-sm text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
             target="_blank"
             rel="noreferrer"
           >
@@ -107,8 +106,8 @@ export default async function ContentDetailPage({ params }: Props) {
       </div>
 
       {/* Transcript */}
-      <div className="rounded-2xl border border-border bg-card shadow-none">
-        <div className="flex flex-col gap-4 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="flex flex-col gap-4 border-b border-border bg-muted/15 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Transcript</h2>

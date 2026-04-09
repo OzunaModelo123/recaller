@@ -344,7 +344,7 @@ export function ContentUploadForm() {
 
       {/* Processing status */}
       {trackingId && (
-        <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-none">
+        <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-foreground">Processing</p>
@@ -374,7 +374,7 @@ export function ContentUploadForm() {
       )}
 
       {/* URL input */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-none">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
             <Link2 className="h-5 w-5 text-muted-foreground" />
@@ -423,7 +423,7 @@ export function ContentUploadForm() {
       </div>
 
       {/* File upload */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-none">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
             <CloudUpload className="h-5 w-5 text-muted-foreground" />

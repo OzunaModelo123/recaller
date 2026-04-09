@@ -28,18 +28,18 @@ export default async function DashboardIntegrationsPage({ searchParams }: Props)
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeader
-          title="Integrations"
-          subtitle="Connect Slack and Microsoft Teams for your workspace. Employees link their own accounts from Employee → Integrations."
-        />
-        <Button variant="outline" size="sm" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
-            <Settings className="mr-2 h-4 w-4" />
-            Company &amp; AI settings
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Integrations"
+        subtitle="Connect Slack and Microsoft Teams for your workspace. Employees link their own accounts from Employee → Integrations."
+        action={
+          <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl">
+            <Link href="/dashboard/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Company &amp; AI settings
+            </Link>
+          </Button>
+        }
+      />
 
       <AdminIntegrationsGrid
         data={data}

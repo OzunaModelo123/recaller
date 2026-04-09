@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Building2, Plug } from "lucide-react";
 
+import { PageHeader } from "@/components/design/page-header";
 import { EMPTY_ORG_CONTEXT } from "@/lib/ai/orgContext";
 import { CompanyContextSettingsPanel } from "@/components/dashboard/company-context-forms";
 import { AdminIntegrationsGrid } from "@/components/dashboard/admin-integrations-grid";
@@ -59,22 +60,18 @@ export default async function SettingsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          Settings
-        </h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          Organization settings, integrations, and billing.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        subtitle="Organization profile, AI context, integrations, and billing."
+      />
 
       {isAdmin && <CompanyContextSettingsPanel initial={initial} />}
 
       {isAdmin && integrationsData ? (
         <div>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-foreground">Integrations</h2>
-            <Button variant="outline" size="sm" asChild>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Integrations</h2>
+            <Button variant="outline" size="sm" className="h-9 rounded-xl" asChild>
               <Link href="/dashboard/integrations">
                 <Plug className="mr-2 h-4 w-4" />
                 Open integrations hub

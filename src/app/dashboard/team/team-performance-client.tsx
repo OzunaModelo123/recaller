@@ -115,10 +115,10 @@ export function TeamPerformanceClient({
         />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-none">
-        <table className="w-full text-left text-sm">
+      <div className="-mx-1 overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] sm:mx-0">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
-            <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <tr className="border-b border-border bg-muted/25 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Title</th>
               <th className="px-4 py-3 font-medium">Active</th>

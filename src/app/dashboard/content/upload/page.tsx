@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { PageHeader } from "@/components/design/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ContentUploadForm } from "./upload-form";
@@ -24,27 +25,24 @@ export default async function ContentUploadPage() {
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="space-y-4">
         <Link
           href="/dashboard/content"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Content library
         </Link>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          Upload content
-        </h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          Add transcripts from links or files. Most sources process instantly;
-          audio and video files use Whisper in the background.
-        </p>
+        <PageHeader
+          title="Upload content"
+          subtitle="Add transcripts from links or files. Most sources process instantly; audio and video files use Whisper in the background."
+        />
       </div>
 
       {isAdmin ? (
         <ContentUploadForm />
       ) : (
-        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-none">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-[var(--shadow-card)]">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card">
             <ShieldAlert className="h-6 w-6 text-muted-foreground" />
           </div>

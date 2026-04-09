@@ -81,7 +81,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-1 items-center justify-center px-6 pb-12">
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-[var(--shadow-card)] backdrop-blur-sm sm:p-8">
             <LoginForm />
           </div>
         </div>

@@ -170,15 +170,15 @@ export default async function EmployeeHomePage() {
 
       {next ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold tracking-tight text-foreground">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
             What to do next
           </h2>
-          <Card>
+          <Card className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
             <CardContent className="p-5 sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-foreground">{next.title}</p>
+                    <p className="line-clamp-2 min-w-0 font-medium text-foreground">{next.title}</p>
                     <Badge variant={next.variant}>{next.label}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -213,7 +213,7 @@ export default async function EmployeeHomePage() {
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Your assigned plans
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -242,7 +242,7 @@ export default async function EmployeeHomePage() {
               <li key={r.id}>
                 <Link href={`/employee/my-plans/${r.id}`} className="block">
                   <Card
-                    className={`transition-colors hover:border-border hover:bg-secondary/90 ${
+                    className={`rounded-xl border border-border bg-card shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:border-primary/15 ${
                       next?.id === r.id
                         ? "border-primary/30 bg-[linear-gradient(180deg,rgba(212,97,60,0.18),rgba(232,224,213,0.35))] ring-1 ring-primary/15"
                         : ""
@@ -258,7 +258,7 @@ export default async function EmployeeHomePage() {
                               </span>
                             </div>
                           ) : null}
-                          <p className="font-medium text-foreground">{r.title}</p>
+                          <p className="line-clamp-2 font-medium leading-snug text-foreground">{r.title}</p>
                           {r.assignerNote?.trim() ? (
                             <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">
                               <span className="font-medium text-foreground/75">Note: </span>

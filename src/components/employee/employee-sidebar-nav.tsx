@@ -51,9 +51,9 @@ export function EmployeeSidebarNav({ className, linkClassName }: Props) {
             key={href}
             href={href}
             className={cn(
-              "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium leading-snug transition-colors duration-150",
+              "group flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium leading-snug transition-colors duration-150",
               active
-                ? "bg-sidebar-primary/18 text-sidebar-primary border border-sidebar-primary/25 shadow-sm"
+                ? "border border-sidebar-primary/25 bg-sidebar-primary/18 text-sidebar-primary shadow-sm"
                 : "border border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               linkClassName,
             )}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { PageHeader } from "@/components/design/page-header";
 import type { ContentAnalysis } from "@/lib/ai/contentAnalyzer";
 import { parseOrgContext } from "@/lib/ai/orgContext";
 import type { ValidationResult } from "@/lib/ai/planValidator";
@@ -181,30 +182,27 @@ export default async function PlanDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="space-y-4">
         <Link
           href="/dashboard/plans"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Plans
         </Link>
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            {plan.title}
-          </h1>
-          {profile?.org_id ? (
-            <PlanAssignSheet
-              planId={plan.id}
-              planTitle={plan.title}
-              candidates={assignCandidates}
-            />
-          ) : null}
-        </div>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          When this plan is ready, use Assign to employee so it appears in their My Plans and home
-          overview.
-        </p>
+        <PageHeader
+          title={plan.title}
+          subtitle="When this plan is ready, use Assign to employee so it appears in their My Plans and home overview."
+          action={
+            profile?.org_id ? (
+              <PlanAssignSheet
+                planId={plan.id}
+                planTitle={plan.title}
+                candidates={assignCandidates}
+              />
+            ) : undefined
+          }
+        />
       </div>
 
       <PlanEditor

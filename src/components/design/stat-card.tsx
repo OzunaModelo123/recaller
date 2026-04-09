@@ -15,7 +15,7 @@ export function StatCard({
   trend?: { tone: StatusTone; text: string };
 }) {
   return (
-    <Card>
+    <Card className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <CardContent className="flex items-start justify-between gap-4 p-5">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { PageHeader } from "@/components/design/page-header";
 import { evidenceSummary } from "@/lib/dashboard/evidence-summary";
 import { createClient } from "@/lib/supabase/server";
 import { unwrapRelation } from "@/lib/supabase/unwrap-relation";
@@ -90,26 +91,23 @@ export default async function TeamMemberHistoryPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="space-y-4">
         <Link
           href="/dashboard/team"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Team
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          {label}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {member.title?.trim() ? `${member.title} · ` : null}
-          {member.email} · {member.role.replace("_", " ")}
-        </p>
+        <PageHeader
+          title={label}
+          subtitle={`${member.title?.trim() ? `${member.title} · ` : ""}${member.email} · ${member.role.replace("_", " ")}`}
+        />
       </div>
 
-      <div className="space-y-6">
-        <h2 className="text-lg font-semibold text-foreground">
-          Assignment history & evidence
+      <div className="space-y-5">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          Assignment history and evidence
         </h2>
         {(assignments ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">

@@ -153,8 +153,8 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
         subtitle="Invite employees, review roster, and inspect training progress with evidence."
       />
 
-      <div className="rounded-2xl border border-border bg-card shadow-none">
-        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-6 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary">
             <UserPlus className="h-[18px] w-[18px] text-primary" />
           </div>
@@ -175,8 +175,8 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card shadow-none">
-        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-6 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary">
             <LineChart className="h-[18px] w-[18px] text-primary" />
           </div>
@@ -194,8 +194,8 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card shadow-none">
-        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-6 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary">
             <Users className="h-[18px] w-[18px] text-primary" />
           </div>
@@ -207,15 +207,15 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
           </div>
         </div>
 
-        <div className="overflow-x-auto px-6 py-4">
+        <div className="-mx-1 overflow-x-auto px-6 py-4 sm:mx-0">
           {(members ?? []).length === 0 && pendingRows.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No team members yet. Send an invite above.
             </p>
           ) : (
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
-                <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-border bg-muted/20 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <th className="pb-3 pr-4 font-medium">Name</th>
                   <th className="pb-3 pr-4 font-medium">Email</th>
                   <th className="pb-3 pr-4 font-medium">Role</th>
@@ -224,7 +224,10 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
               </thead>
               <tbody className="text-muted-foreground">
                 {(members ?? []).map((m) => (
-                  <tr key={m.id} className="border-b border-border last:border-0">
+                  <tr
+                    key={m.id}
+                    className="border-b border-border transition-colors last:border-0 hover:bg-muted/15"
+                  >
                     <td className="py-3 pr-4">
                       {m.role === "employee" ? (
                         <Link
@@ -247,7 +250,10 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
                   </tr>
                 ))}
                 {pendingRows.map((p) => (
-                  <tr key={`inv-${p.email}`} className="border-b border-border last:border-0">
+                  <tr
+                    key={`inv-${p.email}`}
+                    className="border-b border-border transition-colors last:border-0 hover:bg-muted/15"
+                  >
                     <td className="py-3 pr-4 text-muted-foreground">—</td>
                     <td className="py-3 pr-4">{p.email}</td>
                     <td className="py-3 pr-4">Employee</td>

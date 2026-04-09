@@ -99,7 +99,7 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
   }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -163,17 +163,17 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
         </pre>
       ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-none">
-        <table className="w-full text-left text-sm">
+      <div className="-mx-1 overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] sm:mx-0">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <th className="w-10 px-4 py-3" />
-              <th className="px-4 py-3 font-medium">Plan</th>
-              <th className="px-4 py-3 font-medium">Assigned to</th>
-              <th className="px-4 py-3 font-medium">Assigned by</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Due</th>
-              <th className="px-4 py-3 font-medium">Created</th>
+            <tr className="border-b border-border bg-muted/25 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <th className="w-10 px-4 py-3.5" />
+              <th className="px-4 py-3.5 font-medium">Plan</th>
+              <th className="px-4 py-3.5 font-medium">Assigned to</th>
+              <th className="px-4 py-3.5 font-medium">Assigned by</th>
+              <th className="px-4 py-3.5 font-medium">Status</th>
+              <th className="px-4 py-3.5 font-medium">Due</th>
+              <th className="px-4 py-3.5 font-medium">Created</th>
             </tr>
           </thead>
           <tbody className="text-muted-foreground">
@@ -190,8 +190,11 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
               rows.map((r) => {
                 const canSelect = r.status !== "cancelled";
                 return (
-                  <tr key={r.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3">
+                  <tr
+                    key={r.id}
+                    className="border-b border-border transition-colors last:border-0 hover:bg-muted/20"
+                  >
+                    <td className="px-4 py-3.5">
                       {canSelect ? (
                         <Checkbox
                           checked={selected.has(r.id)}
@@ -200,14 +203,14 @@ export function AssignmentsTable({ rows }: { rows: AssignmentRow[] }) {
                         />
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 font-medium text-foreground">
+                    <td className="px-4 py-3.5 font-medium text-foreground">
                       {r.planTitle}
                     </td>
-                    <td className="px-4 py-3">{r.assigneeLabel}</td>
-                    <td className="px-4 py-3">{r.assignerLabel}</td>
-                    <td className="px-4 py-3 capitalize">{r.status}</td>
-                    <td className="px-4 py-3">{r.dueLabel}</td>
-                    <td className="px-4 py-3">{r.createdLabel}</td>
+                    <td className="px-4 py-3.5">{r.assigneeLabel}</td>
+                    <td className="px-4 py-3.5">{r.assignerLabel}</td>
+                    <td className="px-4 py-3.5 capitalize">{r.status}</td>
+                    <td className="px-4 py-3.5">{r.dueLabel}</td>
+                    <td className="px-4 py-3.5">{r.createdLabel}</td>
                   </tr>
                 );
               })

@@ -47,44 +47,32 @@ export default async function MyPlansPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-4 border-b border-border pb-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {profile?.orgName ?? "Training"}
-        </p>
-        <PageHeader
-          title="My Plans"
-          subtitle="Every plan is broken into clear steps. Open one to follow instructions, submit proof, and track your progress."
-          action={
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <Link
-                href="/employee"
-                className="font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Home
-              </Link>
-              <Link
-                href="/employee/profile"
-                className="font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Profile
-              </Link>
-              <Link
-                href="/employee/integrations"
-                className="font-medium text-primary transition-colors hover:text-primary/80"
-              >
-                Integrations
-              </Link>
-            </div>
-          }
-        />
-        <p className="text-xs text-muted-foreground">
-          Slack and Teams: manage under{" "}
-          <Link href="/employee/integrations" className="font-medium text-primary underline-offset-2 hover:underline">
-            Integrations
-          </Link>
-          .
-        </p>
-      </div>
+      <PageHeader
+        title="My plans"
+        subtitle={`${profile?.orgName ?? "Your workspace"} · Every plan is broken into clear steps. Open one to follow instructions, submit proof, and track progress. Slack and Teams live under Integrations.`}
+        action={
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Link
+              href="/employee"
+              className="rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              Home
+            </Link>
+            <Link
+              href="/employee/profile"
+              className="rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              Profile
+            </Link>
+            <Link
+              href="/employee/integrations"
+              className="rounded-lg px-2 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              Integrations
+            </Link>
+          </div>
+        }
+      />
 
       {showEmployeeSlackConnect ? (
         <EmployeeSlackConnectPanel
@@ -105,7 +93,7 @@ export default async function MyPlansPage({ searchParams }: Props) {
           {sorted.map((r) => (
             <li key={r.id}>
               <Link href={`/employee/my-plans/${r.id}`} className="block">
-                <Card className="transition-colors hover:border-border hover:bg-secondary/80">
+                <Card className="border-border/90 shadow-[var(--shadow-card)] transition-colors hover:border-primary/20 hover:shadow-[var(--shadow-card-hover)]">
                   <CardContent className="p-5 sm:p-6">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">

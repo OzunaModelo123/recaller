@@ -158,9 +158,19 @@ export default async function AssignmentsPage() {
         }
       />
 
-      <AssignmentsTable rows={assignmentRows} />
+      <section className="space-y-5" aria-labelledby="assignments-table-heading">
+        <h2 id="assignments-table-heading" className="sr-only">
+          All assignments
+        </h2>
+        <AssignmentsTable rows={assignmentRows} />
+      </section>
 
-      <GroupsPanel groups={groupsForPanel} employees={employeeOpts} />
+      <section aria-labelledby="groups-heading">
+        <h2 id="groups-heading" className="sr-only">
+          Groups
+        </h2>
+        <GroupsPanel groups={groupsForPanel} employees={employeeOpts} />
+      </section>
     </div>
   );
 }

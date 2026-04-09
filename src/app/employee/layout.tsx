@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { LogOut, Menu } from "lucide-react";
 
 import { EmployeeSidebarNav } from "@/components/employee/employee-sidebar-nav";
-import { EmployeeTopBar } from "@/components/employee/employee-top-bar";
+import {
+  EmployeeMobilePageLabel,
+  EmployeeTopBar,
+} from "@/components/employee/employee-header-context";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,14 +100,17 @@ export default async function EmployeeLayout({
       <div className="flex flex-1 flex-col">
         <EmployeeTopBar orgName={profile.orgName} />
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-4 py-3 backdrop-blur-xl md:hidden">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Sheet>
               <SheetTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="flex w-[min(100%,280px)] flex-col border-sidebar-border bg-sidebar p-0">
+              <SheetContent
+                side="left"
+                className="flex w-[min(100%,300px)] flex-col border-sidebar-border bg-sidebar p-0"
+              >
                 <SheetHeader className="border-b border-sidebar-border px-5 pb-4 pt-5 text-left">
                   <SheetTitle className="flex items-start gap-2.5 text-left font-semibold text-sidebar-foreground">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent text-xs font-bold text-sidebar-foreground shadow-sm">
@@ -150,14 +156,17 @@ export default async function EmployeeLayout({
             </Sheet>
             <Link
               href="/employee"
-              className="flex min-w-0 items-center gap-2.5 rounded-lg py-1 pr-1"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-1 pr-1"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent text-[10px] font-bold text-sidebar-foreground">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-[10px] font-bold text-foreground shadow-sm">
                 R
               </div>
               <div className="min-w-0 text-left">
-                <p className="truncate text-sm font-semibold text-sidebar-foreground">Recaller</p>
-                <p className="truncate text-[10px] font-medium text-sidebar-foreground/70">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Recaller
+                </p>
+                <EmployeeMobilePageLabel />
+                <p className="truncate text-[10px] font-medium text-muted-foreground">
                   {profile.orgName}
                 </p>
               </div>
@@ -165,8 +174,8 @@ export default async function EmployeeLayout({
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 p-6 md:p-8">
-          <div className="relative max-w-6xl">{children}</div>
+        <main className="relative z-10 flex-1 p-5 sm:p-6 md:p-8">
+          <div className="relative mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

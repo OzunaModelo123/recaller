@@ -25,9 +25,14 @@ import {
   Zap,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { LiveAnalyticsPayload } from "@/lib/dashboard/load-insights";
+
+function truncateLabel(text: string, max = 40): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
 
 function fmtHours(v: number | null): string {
   if (v == null) return "—";
@@ -154,25 +159,25 @@ export function InsightsCharts(data: LiveAnalyticsPayload) {
 
   return (
     <div className="space-y-8">
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+      <section className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/60 pb-4">
+          <div className="min-w-0 space-y-1">
             <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Overview
             </p>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               The important numbers
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
               Start here. Click a card to see what it means and why it matters.
             </p>
           </div>
-          <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
+          <span className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
             Local time: {timeZoneLabel}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {keyMetrics.map((metric) => {
             const active = metric.id === selectedMetric?.id;
             return (
@@ -180,20 +185,22 @@ export function InsightsCharts(data: LiveAnalyticsPayload) {
                 key={metric.id}
                 type="button"
                 onClick={() => setSelectedMetricId(metric.id)}
-                className={`rounded-xl border bg-card p-4 text-left shadow-[var(--shadow-xs)] transition-all ${
+                className={`flex min-h-[9.5rem] flex-col rounded-xl border bg-card p-4 text-left shadow-[var(--shadow-xs)] transition-all ${
                   active
                     ? "border-primary/35 ring-1 ring-primary/15 shadow-[var(--shadow-sm)]"
                     : "border-border hover:border-primary/20 hover:shadow-[var(--shadow-sm)]"
                 }`}
               >
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  {metric.icon}
-                  <span className="text-xs font-medium">{metric.label}</span>
+                <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
+                  <span className="mt-0.5 shrink-0">{metric.icon}</span>
+                  <span className="min-w-0 text-xs font-medium leading-snug">{metric.label}</span>
                 </div>
-                <p className="mt-2 text-xl font-semibold tabular-nums text-foreground">
+                <p className="mt-3 break-words text-xl font-semibold leading-tight tracking-tight text-foreground tabular-nums">
                   {metric.value}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">{metric.shortHelp}</p>
+                <p className="mt-auto pt-3 text-xs leading-snug text-muted-foreground line-clamp-3">
+                  {metric.shortHelp}
+                </p>
               </button>
             );
           })}
@@ -201,28 +208,28 @@ export function InsightsCharts(data: LiveAnalyticsPayload) {
 
         {selectedMetric ? (
           <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              {selectedMetric.icon}
-              {selectedMetric.label}
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+              <span className="shrink-0">{selectedMetric.icon}</span>
+              <span className="min-w-0">{selectedMetric.label}</span>
             </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
+            <p className="mt-2 break-words text-2xl font-semibold leading-tight tabular-nums text-foreground">
               {selectedMetric.value}
             </p>
             <Separator className="my-4" />
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
+            <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+              <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Why this matters
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                   {selectedMetric.why}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   How it is calculated
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                   {selectedMetric.calc}
                 </p>
               </div>
@@ -337,21 +344,22 @@ export function InsightsCharts(data: LiveAnalyticsPayload) {
               {topPerformers.map((person) => (
                 <div
                   key={person.userId}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/80 px-3 py-3"
+                  className="flex flex-col gap-2 rounded-xl border border-border/80 bg-muted/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <Link
                       href={`/dashboard/team/${person.userId}`}
                       className="text-sm font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
                     >
                       {person.name}
                     </Link>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                       {person.activeAssignments} open assignment
-                      {person.activeAssignments === 1 ? "" : "s"} · {person.stepsCompletedInPeriod} steps logged this period
+                      {person.activeAssignments === 1 ? "" : "s"} · {person.stepsCompletedInPeriod}{" "}
+                      steps this period
                     </p>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground sm:text-right">
                     {person.stepProgressPercent}%
                   </span>
                 </div>
@@ -407,36 +415,52 @@ export function InsightsCharts(data: LiveAnalyticsPayload) {
         >
           {planRows.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={Math.max(240, planRows.length * 34)}>
-                <BarChart data={planRows} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 10 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--color-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                    }}
-                    formatter={(value, name) => {
-                      if (name === "avgStepProgressPercent") return [`${value ?? 0}%`, "Avg progress"];
-                      return [value, name];
-                    }}
-                    labelFormatter={(_, payload) =>
-                      (payload?.[0]?.payload as { title?: string } | undefined)?.title ?? ""
+              <div className="min-w-0 overflow-x-auto">
+                <ResponsiveContainer width="100%" height={Math.max(260, planRows.length * 40)}>
+                  <BarChart data={planRows} layout="vertical" margin={{ left: 8, right: 12, top: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      width={168}
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v) => truncateLabel(String(v), 34)}
+                      interval={0}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--color-card)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 8,
+                        maxWidth: 320,
+                      }}
+                      formatter={(value, name) => {
+                        if (name === "avgStepProgressPercent") return [`${value ?? 0}%`, "Avg progress"];
+                        return [value, name];
+                      }}
+                      labelFormatter={(_, payload) =>
+                        (payload?.[0]?.payload as { title?: string } | undefined)?.title ?? ""
                     }
-                  />
-                  <Bar dataKey="avgStepProgressPercent" fill="#10b981" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
+                    />
+                    <Bar dataKey="avgStepProgressPercent" fill="#10b981" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 max-h-48 space-y-2 overflow-y-auto overflow-x-hidden rounded-lg border border-border/70 bg-muted/15 p-3">
                 {effectiveness.slice(0, 5).map((plan) => (
-                  <div key={plan.planId} className="flex items-center justify-between gap-3 text-sm">
-                    <Button variant="link" className="h-auto p-0 text-left" asChild>
-                      <Link href={`/dashboard/plans/${plan.planId}`}>{plan.title}</Link>
-                    </Button>
-                    <span className="text-muted-foreground">
-                      {plan.assignmentsTotal} assigned · {plan.avgStepProgressPercent}% avg progress
+                  <div
+                    key={plan.planId}
+                    className="flex flex-col gap-1 border-b border-border/50 py-2 last:border-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+                  >
+                    <Link
+                      href={`/dashboard/plans/${plan.planId}`}
+                      className="min-w-0 flex-1 text-sm font-medium leading-snug text-primary underline-offset-4 hover:underline"
+                    >
+                      <span className="line-clamp-2 break-words">{plan.title}</span>
+                    </Link>
+                    <span className="shrink-0 text-xs text-muted-foreground sm:max-w-[11rem] sm:text-right">
+                      {plan.assignmentsTotal} assigned · {plan.avgStepProgressPercent}% avg
                     </span>
                   </div>
                 ))}
@@ -453,22 +477,31 @@ export function InsightsCharts(data: LiveAnalyticsPayload) {
         >
           {categoryRows.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={Math.max(220, categoryRows.length * 42)}>
-                <BarChart data={categoryRows} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="category" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--color-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                    }}
-                    formatter={(value) => [`${value ?? 0}%`, "Completed"]}
-                  />
-                  <Bar dataKey="avgCompletionRate" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="min-w-0 overflow-x-auto">
+                <ResponsiveContainer width="100%" height={Math.max(240, categoryRows.length * 44)}>
+                  <BarChart data={categoryRows} layout="vertical" margin={{ left: 4, right: 8, top: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="category"
+                      width={128}
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v) => truncateLabel(String(v), 22)}
+                      interval={0}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--color-card)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 8,
+                      }}
+                      formatter={(value) => [`${value ?? 0}%`, "Completed"]}
+                    />
+                    <Bar dataKey="avgCompletionRate" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
               <p className="mt-3 text-sm text-muted-foreground">
                 Use this to compare where teams finish assigned work most consistently.
               </p>
@@ -492,10 +525,10 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-      <div className="mt-4">{children}</div>
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
+      <h3 className="text-sm font-semibold leading-snug text-foreground">{title}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
+      <div className="mt-4 min-w-0">{children}</div>
     </div>
   );
 }
@@ -510,13 +543,13 @@ function SectionHeader({
   subtitle: string;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-2 border-b border-border/60 pb-4">
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {eyebrow}
       </p>
-      <div className="space-y-0.5">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <div className="space-y-1.5">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
       </div>
     </div>
   );

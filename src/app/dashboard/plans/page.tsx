@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight, ClipboardList, FileVideo } from "lucide-react";
 
+import { PageHeader } from "@/components/design/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,39 +48,34 @@ export default async function PlansListPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Plans
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            AI-generated learning plans from your content library. Assignment coverage
-            and groups update when you distribute from each plan or Assignments.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="rounded-lg" asChild>
-            <Link href="/dashboard/content">
-              <FileVideo className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              Content
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" className="rounded-lg" asChild>
-            <Link href="/dashboard/assignments">
-              <ClipboardList className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              Assignments
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Plans"
+        subtitle="AI-generated learning plans from your content library. Assignment coverage and groups update when you distribute from each plan or Assignments."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="h-9 rounded-xl px-3" asChild>
+              <Link href="/dashboard/content">
+                <FileVideo className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Content
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" className="h-9 rounded-xl px-3" asChild>
+              <Link href="/dashboard/assignments">
+                <ClipboardList className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Assignments
+              </Link>
+            </Button>
+          </div>
+        }
+      />
 
       {!plans?.length ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 py-16 text-center text-sm text-muted-foreground">
           No plans yet. Open a ready content item and choose{" "}
           <span className="font-medium text-muted-foreground">Generate plan</span>.
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-none">
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
           {plans.map((p) => {
             const { line, hasAssignments } = formatPlanAssignmentSummary(
               statsByPlan.get(p.id),
@@ -88,7 +84,7 @@ export default async function PlansListPage() {
               <li key={p.id}>
                 <Link
                   href={`/dashboard/plans/${p.id}`}
-                  className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-secondary/80 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

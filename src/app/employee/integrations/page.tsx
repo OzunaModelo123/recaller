@@ -55,15 +55,10 @@ export default async function EmployeeIntegrationsPage({ searchParams }: Props) 
 
   return (
     <div className="space-y-8">
-      <div className="space-y-4 border-b border-border pb-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {profile.orgName}
-        </p>
-        <PageHeader
-          title="Integrations"
-          subtitle="Link Slack or Teams to get training plans in direct messages and complete steps there."
-        />
-      </div>
+      <PageHeader
+        title="Integrations"
+        subtitle={`${profile.orgName} · Link Slack or Teams to get training plans in direct messages and complete steps there.`}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <EmployeeSlackIntegrationCard

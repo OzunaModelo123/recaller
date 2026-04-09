@@ -613,10 +613,10 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+          <div className="-mx-1 overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] sm:mx-0">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
-                <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-border bg-muted/25 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3 font-medium">Member</th>
                   <th className="px-4 py-3 font-medium">Role</th>
                   <th className="px-4 py-3 font-medium">Group</th>
@@ -628,7 +628,7 @@ export default async function DashboardPage() {
                 {memberAssignmentRows.map((r) => (
                   <tr
                     key={r.assignmentId}
-                    className="border-b border-border last:border-0"
+                    className="border-b border-border transition-colors last:border-0 hover:bg-muted/20"
                   >
                     <td className="px-4 py-3">
                       <Link
@@ -669,7 +669,7 @@ export default async function DashboardPage() {
               </p>
             </div>
             <Button variant="outline" size="sm" className="rounded-lg" asChild>
-              <Link href="/dashboard/onboarding/context">Company context</Link>
+              <Link href="/dashboard/settings#ai-context">Company context</Link>
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -258,17 +258,17 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-2">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-stone-400">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
           Company context
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Set up your workspace
         </h1>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-muted-foreground">
           This profile helps the AI tailor learning plans to how your company works. You can change it anytime in Settings.
         </p>
         <Progress value={progress} className="mt-4 h-2" />
-        <p className="text-xs text-stone-400">Step {step} of 4</p>
+        <p className="text-xs text-muted-foreground">Step {step} of 4</p>
       </div>
 
       {error && (
@@ -278,7 +278,7 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
       )}
 
       {step === 1 && (
-        <Card className="border-stone-200 shadow-sm">
+        <Card className="border-border shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle className="text-lg">About your company</CardTitle>
             <CardDescription>Basics the AI uses in every plan.</CardDescription>
@@ -351,7 +351,7 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
       )}
 
       {step === 2 && (
-        <Card className="border-stone-200 shadow-sm">
+        <Card className="border-border shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle className="text-lg">Your team&apos;s roles</CardTitle>
             <CardDescription>Who completes training, and what does their day look like?</CardDescription>
@@ -363,7 +363,7 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
                 {ROLE_PRESETS.map((r) => (
                   <label
                     key={r}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-stone-100 bg-stone-50/50 px-3 py-2 text-sm"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm"
                   >
                     <Checkbox
                       checked={form.selectedRoles.includes(r)}
@@ -411,12 +411,12 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
             </div>
 
             {form.selectedRoles.map((roleName) => (
-              <Collapsible key={roleName} defaultOpen className="rounded-xl border border-stone-200">
-                <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-stone-800 hover:bg-stone-50">
+              <Collapsible key={roleName} defaultOpen className="rounded-xl border border-border">
+                <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-foreground hover:bg-muted/30">
                   {roleName}
-                  <ChevronDown className="h-4 w-4 text-stone-400" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="border-t border-stone-100 px-4 py-4 space-y-4">
+                <CollapsibleContent className="border-t border-border px-4 py-4 space-y-4">
                   <div className="space-y-2">
                     <Label>Typical workday (2–3 sentences)</Label>
                     <Textarea
@@ -486,7 +486,7 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
       )}
 
       {step === 3 && (
-        <Card className="border-stone-200 shadow-sm">
+        <Card className="border-border shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle className="text-lg">What &quot;applying training&quot; means here</CardTitle>
             <CardDescription>Ground rules for realistic, safe suggestions.</CardDescription>
@@ -498,7 +498,7 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
                 {APPLICATION_PRESETS.map((a) => (
                   <label
                     key={a}
-                    className="flex cursor-pointer items-start gap-2 rounded-lg border border-stone-100 bg-stone-50/50 px-3 py-2 text-sm"
+                    className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm"
                   >
                     <Checkbox
                       className="mt-0.5"
@@ -550,13 +550,13 @@ export function CompanyContextOnboardingWizard({ initial }: { initial: OrgContex
       )}
 
       {step === 4 && (
-        <Card className="border-stone-200 shadow-sm">
+        <Card className="border-border shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle className="text-lg">Company language</CardTitle>
             <CardDescription>Optional — acronyms and terms the AI should use correctly.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               Example: QBR → Quarterly Business Review, AE → Account Executive
             </p>
             {form.glossaryRows.map((row, idx) => (
@@ -670,7 +670,10 @@ export function CompanyContextSettingsPanel({ initial }: { initial: OrgContext }
   }
 
   return (
-    <Card className="border-stone-200 shadow-sm">
+    <Card
+      id="ai-context"
+      className="scroll-mt-28 border-border shadow-[var(--shadow-card)]"
+    >
       <CardHeader>
         <CardTitle className="text-lg">AI context</CardTitle>
         <CardDescription>
@@ -685,7 +688,7 @@ export function CompanyContextSettingsPanel({ initial }: { initial: OrgContext }
         )}
 
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-stone-800">About your company</h3>
+          <h3 className="text-sm font-semibold text-foreground">About your company</h3>
           <div className="space-y-2">
             <Label>What does your company do?</Label>
             <Textarea
@@ -739,7 +742,7 @@ export function CompanyContextSettingsPanel({ initial }: { initial: OrgContext }
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-stone-800">Roles</h3>
+          <h3 className="text-sm font-semibold text-foreground">Roles</h3>
           <div className="grid gap-2 sm:grid-cols-2">
             {ROLE_PRESETS.map((r) => (
               <label key={r} className="flex items-center gap-2 text-sm">
@@ -752,8 +755,8 @@ export function CompanyContextSettingsPanel({ initial }: { initial: OrgContext }
             ))}
           </div>
           {form.selectedRoles.map((roleName) => (
-            <div key={roleName} className="rounded-xl border border-stone-100 bg-stone-50/50 p-4 space-y-3">
-              <p className="text-sm font-medium text-stone-800">{roleName}</p>
+            <div key={roleName} className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
+              <p className="text-sm font-medium text-foreground">{roleName}</p>
               <Textarea
                 placeholder="Typical workday"
                 value={form.roleForms[roleName]?.typical_day ?? ""}
@@ -802,7 +805,7 @@ export function CompanyContextSettingsPanel({ initial }: { initial: OrgContext }
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-stone-800">Applying training</h3>
+          <h3 className="text-sm font-semibold text-foreground">Applying training</h3>
           <div className="grid gap-2">
             {APPLICATION_PRESETS.map((a) => (
               <label key={a} className="flex items-start gap-2 text-sm">
@@ -837,7 +840,7 @@ export function CompanyContextSettingsPanel({ initial }: { initial: OrgContext }
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-stone-800">Glossary</h3>
+          <h3 className="text-sm font-semibold text-foreground">Glossary</h3>
           {form.glossaryRows.map((row, idx) => (
             <div key={idx} className="flex flex-col gap-2 sm:flex-row">
               <Input

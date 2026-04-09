@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileVideo, Plus, Search, ExternalLink } from "lucide-react";
+import { PageHeader } from "@/components/design/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,50 +122,46 @@ export default async function ContentPage({ searchParams }: { searchParams: Sear
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Content Library
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            Training sources for AI plan generation.
-            {list.length > 0 && (
-              <span className="ml-1 font-medium text-muted-foreground">{list.length} items</span>
-            )}
-          </p>
-        </div>
-        {isAdmin && (
-          <Button asChild className="shrink-0 rounded-xl">
-            <Link href="/dashboard/content/upload">
-              <Plus className="mr-2 h-4 w-4" />
-              Upload new
-            </Link>
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Content library"
+        subtitle={
+          list.length > 0
+            ? `Training sources for AI plan generation · ${list.length} items`
+            : "Training sources for AI plan generation."
+        }
+        action={
+          isAdmin ? (
+            <Button asChild className="h-10 shrink-0 rounded-xl px-5">
+              <Link href="/dashboard/content/upload">
+                <Plus className="mr-2 h-4 w-4" />
+                Upload new
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Search + Filter */}
       <form
-        className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        className="flex flex-col gap-4 rounded-2xl border border-border bg-card/90 p-4 shadow-[var(--shadow-card)] sm:flex-row sm:items-end sm:p-5"
         method="get"
         action="/dashboard/content"
       >
-        <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="q"
             placeholder="Search by title..."
             defaultValue={q}
-            className="h-11 rounded-lg pl-10 text-base"
+            className="h-11 rounded-xl border-border/80 bg-background/80 pl-10 text-base shadow-[var(--shadow-xs)]"
             aria-label="Search by title"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 sm:shrink-0">
           <select
             name="type"
             defaultValue={typeFilter}
-            className="h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground shadow-[var(--shadow-xs)] transition-all focus:border-primary focus:ring-0"
+            className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background/80 px-3 text-base text-foreground shadow-[var(--shadow-xs)] transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 sm:min-w-[140px] sm:flex-initial"
             aria-label="Filter by source type"
           >
             {SOURCE_FILTERS.map((opt) => (
@@ -173,7 +170,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Sear
               </option>
             ))}
           </select>
-          <Button type="submit" variant="secondary" className="rounded-xl">
+          <Button type="submit" variant="secondary" className="h-11 rounded-xl px-5">
             Apply
           </Button>
         </div>
@@ -181,8 +178,8 @@ export default async function ContentPage({ searchParams }: { searchParams: Sear
 
       {/* Content grid */}
       {list.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card py-20 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-none">
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/80 bg-card/50 py-16 text-center sm:py-20">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
             <FileVideo className="h-6 w-6 text-muted-foreground" />
           </div>
           <h3 className="mt-5 text-sm font-semibold text-foreground">No content yet</h3>
@@ -200,11 +197,11 @@ export default async function ContentPage({ searchParams }: { searchParams: Sear
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((row) => (
             <div
               key={row.id}
-              className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] hover:border-border"
+              className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/15 hover:shadow-[var(--shadow-card-hover)]"
             >
               <Link
                 href={`/dashboard/content/${row.id}`}
