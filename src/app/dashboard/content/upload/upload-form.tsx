@@ -249,11 +249,12 @@ export function ContentUploadForm() {
           const mediaNeedsOptimization =
             !serverFallback && shouldOptimizeMediaForTranscript(file);
 
-          const {
-            data: { session: authSession },
-          } = await supabase.auth.getSession();
-
-          if (!authSession?.access_token) {
+          // Early auth gate — verifies the user is signed in before we start
+          // any expensive work. We intentionally do NOT store accessToken here;
+          // the token is re-fetched inside uploadStorageObject so that a fresh
+          // JWT is used even after WebCodecs extraction runs for several minutes.
+          const { data: { session: initialSession } } = await supabase.auth.getSession();
+          if (!initialSession?.access_token) {
             await abortContentFileUpload(prep.contentItemId);
             setFileError(
               "Your session expired. Please sign in again and retry the upload.",
@@ -261,7 +262,6 @@ export function ContentUploadForm() {
             return;
           }
 
-          const accessToken = authSession.access_token;
           setUploadProgress(8);
 
           type UploadItem = {
@@ -288,6 +288,16 @@ export function ContentUploadForm() {
               };
             }
 
+            // Always fetch a fresh session immediately before creating the TUS
+            // upload. This prevents the "exp claim timestamp check failed" 403
+            // that occurs when WebCodecs extraction takes several minutes and the
+            // token captured at the start of handleFile has since expired or drifted.
+            const { data: { session: freshSession } } = await supabase.auth.getSession();
+            if (!freshSession?.access_token) {
+              return { ok: false, message: "Session expired during upload. Please sign in again." };
+            }
+            const freshToken = freshSession.access_token;
+
             const typeForStorage = storageContentType(item.contentType);
 
             try {
@@ -299,7 +309,7 @@ export function ContentUploadForm() {
                   uploadDataDuringCreation: true,
                   removeFingerprintOnSuccess: true,
                   headers: {
-                    authorization: `Bearer ${accessToken}`,
+                    authorization: `Bearer ${freshToken}`,
                     apikey: anonKey,
                     "x-upsert": "false",
                   },
