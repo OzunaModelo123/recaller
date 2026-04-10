@@ -410,6 +410,7 @@ export async function deleteContentItem(
 export async function finalizeContentFileUpload(
   contentItemId: string,
   uploadedAssets: UploadedContentAsset[] = [],
+  clientMeta?: Record<string, unknown>,
 ): Promise<IngestResult> {
   try {
     const ctx = await requireAdminOrg();
@@ -489,13 +490,11 @@ export async function finalizeContentFileUpload(
         row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
           ? (row.metadata as Record<string, unknown>)
           : {};
-      const nextMetadata =
-        uploadedAssets.length > 0
-          ? {
-              ...normalizedMetadata,
-              uploaded_assets: uploadedAssets,
-            }
-          : normalizedMetadata;
+      const nextMetadata = {
+        ...normalizedMetadata,
+        ...(uploadedAssets.length > 0 ? { uploaded_assets: uploadedAssets } : {}),
+        ...(clientMeta ?? {}),
+      };
 
       const { error: upRowErr } = await supabase
         .from("content_items")

@@ -13,6 +13,12 @@ const OPENAI_TRANSCRIPTION_MAX_BYTES = 24 * 1024 * 1024;
 const COMPRESSED_AUDIO_BITRATE = "64k";
 const COMPRESSED_AUDIO_SAMPLE_RATE = "16000";
 
+/** Files at or below this size skip client-side extraction; Whisper accepts MP4 directly. */
+const WHISPER_DIRECT_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+
+/** Maximum number of chunks transcribed concurrently to balance speed vs. API rate limits. */
+const TRANSCRIPTION_CONCURRENCY = 3;
+
 type UploadedMediaAsset = {
   path: string;
   bytes?: number;
@@ -232,6 +238,28 @@ async function purgeUploadedAssets(admin: ReturnType<typeof createAdminClient>, 
   }
 }
 
+/**
+ * Run up to `limit` async tasks concurrently, preserving result order.
+ */
+async function mapConcurrent<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 async function transcribeMediaBuffer(
   openai: OpenAI,
   buffer: Buffer,
@@ -243,19 +271,31 @@ async function transcribeMediaBuffer(
 
   try {
     await fs.writeFile(sourcePath, buffer);
-    await compressMediaToAudio(sourcePath, compressedAudioPath);
 
-    const chunks = await splitAudioIntoChunks(compressedAudioPath, tempDir);
-    const transcripts: string[] = [];
+    // Small files that Whisper can accept directly skip the ffmpeg compression step
+    const stats = await fs.stat(sourcePath);
+    const isWhisperCompatible =
+      stats.size <= WHISPER_DIRECT_UPLOAD_MAX_BYTES &&
+      canTranscribeUploadedAssetDirectly({ path: originalBasename });
 
-    for (const [index, chunkPath] of chunks.entries()) {
-      const text = await transcribeChunk(openai, chunkPath, index);
-      if (text) {
-        transcripts.push(text);
-      }
+    let chunks: string[];
+
+    if (isWhisperCompatible) {
+      // Whisper handles this directly — no ffmpeg needed
+      chunks = [sourcePath];
+    } else {
+      await compressMediaToAudio(sourcePath, compressedAudioPath);
+      chunks = await splitAudioIntoChunks(compressedAudioPath, tempDir);
     }
 
-    const merged = transcripts.join("\n\n").trim();
+    // Transcribe chunks concurrently (up to TRANSCRIPTION_CONCURRENCY at a time)
+    const transcripts = await mapConcurrent(
+      chunks,
+      TRANSCRIPTION_CONCURRENCY,
+      async (chunkPath, index) => transcribeChunk(openai, chunkPath, index),
+    );
+
+    const merged = transcripts.filter(Boolean).join("\n\n").trim();
     if (!merged) {
       throw new Error("Whisper returned empty text");
     }
@@ -268,6 +308,188 @@ async function transcribeMediaBuffer(
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Inngest fan-out / fan-in helpers
+// ---------------------------------------------------------------------------
+
+export type TranscriptionAssetInfo = {
+  path: string;
+  bytes?: number;
+  contentType?: string;
+  kind?: string;
+  index: number;
+};
+
+export type TranscriptionPlan = {
+  contentItemId: string;
+  assets: TranscriptionAssetInfo[];
+  filePath: string | null;
+  baseMeta: Record<string, unknown>;
+  /** "segmented" = multiple pre-extracted audio segments; "single" = one file to download + process */
+  mode: "segmented" | "single";
+};
+
+/**
+ * Step 1 (Inngest fan-out): Load the content item and determine what needs transcribing.
+ */
+export async function getTranscriptionPlan(contentItemId: string): Promise<TranscriptionPlan> {
+  const admin = createAdminClient();
+  const { data: item, error: itemError } = await admin
+    .from("content_items")
+    .select("id, file_path, metadata")
+    .eq("id", contentItemId)
+    .single();
+
+  if (itemError || !item?.file_path) {
+    throw new Error(itemError?.message ?? "Content item or file path missing");
+  }
+
+  const baseMeta =
+    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
+      ? (item.metadata as Record<string, unknown>)
+      : {};
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    await admin
+      .from("content_items")
+      .update({
+        status: "failed",
+        metadata: { ...baseMeta, error: "OPENAI_API_KEY is not configured" },
+      })
+      .eq("id", contentItemId);
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  await admin.from("content_items").update({ status: "transcribing" }).eq("id", contentItemId);
+
+  const uploadedAssets = readUploadedAssets(item.metadata);
+
+  if (uploadedAssets.some((asset) => asset.kind === "transcript_audio_segment")) {
+    return {
+      contentItemId,
+      assets: uploadedAssets.map((asset, index) => ({ ...asset, index })),
+      filePath: item.file_path,
+      baseMeta,
+      mode: "segmented",
+    };
+  }
+
+  // Single file — return one "asset" pointing at the file_path
+  return {
+    contentItemId,
+    assets: [
+      {
+        path: item.file_path,
+        kind: "source_file",
+        index: 0,
+      },
+    ],
+    filePath: item.file_path,
+    baseMeta,
+    mode: "single",
+  };
+}
+
+/**
+ * Step 2 (Inngest parallel step): Transcribe a single asset and return the text.
+ * Each asset is processed independently so Inngest can fan-out across workers.
+ */
+export async function transcribeSingleAsset(asset: TranscriptionAssetInfo): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+
+  const openai = new OpenAI({ apiKey });
+  const admin = createAdminClient();
+
+  const { data: assetBlob, error: assetError } = await admin.storage
+    .from("content-files")
+    .download(asset.path);
+
+  if (assetError || !assetBlob) {
+    throw new Error(assetError?.message ?? `Storage download failed for ${asset.path}`);
+  }
+
+  const assetBuffer = Buffer.from(await assetBlob.arrayBuffer());
+  const assetName =
+    asset.path.split("/").pop() || `segment-${String(asset.index + 1).padStart(3, "0")}.bin`;
+
+  if (
+    assetBuffer.byteLength <= OPENAI_TRANSCRIPTION_MAX_BYTES &&
+    canTranscribeUploadedAssetDirectly(asset)
+  ) {
+    return transcribeAudioBuffer(
+      openai,
+      assetBuffer,
+      assetName,
+      asset.contentType?.split(";")[0]?.trim() || guessMimeAndName(assetName).mime,
+    );
+  }
+
+  const result = await transcribeMediaBuffer(openai, assetBuffer, assetName);
+  return result.text;
+}
+
+/**
+ * Step 3 (Inngest fan-in): Merge transcript parts, save to DB, and purge storage.
+ */
+export async function finalizeTranscription(
+  contentItemId: string,
+  transcriptParts: string[],
+  plan: TranscriptionPlan,
+): Promise<void> {
+  const admin = createAdminClient();
+
+  const text = transcriptParts.filter(Boolean).join("\n\n").trim();
+  if (!text) {
+    await admin
+      .from("content_items")
+      .update({
+        status: "failed",
+        metadata: { ...plan.baseMeta, error: "Whisper returned empty text" },
+      })
+      .eq("id", contentItemId);
+    throw new Error("Whisper returned empty text");
+  }
+
+  const { error: updateError } = await admin
+    .from("content_items")
+    .update({
+      transcript: text,
+      status: "ready",
+      metadata: {
+        ...plan.baseMeta,
+        whisper: true,
+        transcription_chunks: transcriptParts.length,
+      },
+    })
+    .eq("id", contentItemId);
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  // Purge all uploaded media from storage — only the transcript text stays
+  if (plan.mode === "segmented") {
+    await purgeUploadedAssets(
+      admin,
+      plan.assets.map((asset) => asset.path),
+    );
+    const { error: clearPathError } = await admin
+      .from("content_items")
+      .update({ file_path: null })
+      .eq("id", contentItemId);
+    if (clearPathError) {
+      throw new Error(clearPathError.message);
+    }
+  } else {
+    await purgeContentSourceFile(admin, contentItemId, { throwOnStorageError: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy all-in-one function (still used by contentTranscriptService.ts `after()` path)
+// ---------------------------------------------------------------------------
 
 export async function transcribeUploadedMedia(contentItemId: string): Promise<void> {
   const admin = createAdminClient();
@@ -308,37 +530,36 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
     let chunkCount = 0;
 
     if (uploadedAssets.some((asset) => asset.kind === "transcript_audio_segment")) {
-      const transcriptParts: string[] = [];
+      // Transcribe all uploaded audio segments concurrently
+      const transcriptParts = await mapConcurrent(
+        uploadedAssets,
+        TRANSCRIPTION_CONCURRENCY,
+        async (asset, index) => {
+          const { data: assetBlob, error: assetError } = await admin.storage
+            .from("content-files")
+            .download(asset.path);
 
-      for (const [index, asset] of uploadedAssets.entries()) {
-        const { data: assetBlob, error: assetError } = await admin.storage
-          .from("content-files")
-          .download(asset.path);
+          if (assetError || !assetBlob) {
+            throw new Error(assetError?.message ?? `Storage download failed for ${asset.path}`);
+          }
 
-        if (assetError || !assetBlob) {
-          throw new Error(assetError?.message ?? `Storage download failed for ${asset.path}`);
-        }
+          const assetBuffer = Buffer.from(await assetBlob.arrayBuffer());
+          const assetName =
+            asset.path.split("/").pop() || `segment-${String(index + 1).padStart(3, "0")}.bin`;
 
-        const assetBuffer = Buffer.from(await assetBlob.arrayBuffer());
-        const assetName =
-          asset.path.split("/").pop() || `segment-${String(index + 1).padStart(3, "0")}.bin`;
-        const assetText =
-          assetBuffer.byteLength <= OPENAI_TRANSCRIPTION_MAX_BYTES &&
-          canTranscribeUploadedAssetDirectly(asset)
-            ? await transcribeAudioBuffer(
-                openai,
-                assetBuffer,
-                assetName,
-                asset.contentType?.split(";")[0]?.trim() || guessMimeAndName(assetName).mime,
-              )
-            : (await transcribeMediaBuffer(openai, assetBuffer, assetName)).text;
+          return assetBuffer.byteLength <= OPENAI_TRANSCRIPTION_MAX_BYTES &&
+            canTranscribeUploadedAssetDirectly(asset)
+            ? transcribeAudioBuffer(
+              openai,
+              assetBuffer,
+              assetName,
+              asset.contentType?.split(";")[0]?.trim() || guessMimeAndName(assetName).mime,
+            )
+            : transcribeMediaBuffer(openai, assetBuffer, assetName).then((r) => r.text);
+        },
+      );
 
-        if (assetText) {
-          transcriptParts.push(assetText);
-        }
-      }
-
-      text = transcriptParts.join("\n\n").trim();
+      text = transcriptParts.filter(Boolean).join("\n\n").trim();
       chunkCount = uploadedAssets.length;
       if (!text) {
         throw new Error("Whisper returned empty text");

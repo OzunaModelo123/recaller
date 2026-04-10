@@ -4,7 +4,7 @@
  * Faster-than-real-time extraction: decode + capture while the media element plays
  * above 1×. Capped to avoid unstable decoders; pitch preservation helps Whisper.
  */
-const EXTRACTION_PLAYBACK_RATE = 2;
+const EXTRACTION_PLAYBACK_RATE = 4;
 
 /** Smaller slices → first storage upload starts sooner while capture continues. */
 const RECORDER_TIMESLICE_MS = 15_000;
@@ -39,7 +39,7 @@ export type OptimizeMediaOptions = {
 export type OptimizedMediaResult = {
   assets: OptimizedMediaAsset[];
   metadata: {
-    optimization_strategy: "browser_audio_segments" | "browser_media_recorder_audio_chunks";
+    optimization_strategy: "webcodecs_audio_segments" | "browser_audio_segments" | "browser_media_recorder_audio_chunks";
     target_audio_bitrate: string;
     target_audio_sample_rate: string;
     segment_duration_seconds: number;
@@ -114,11 +114,134 @@ function applyFastPlayback(mediaElement: HTMLMediaElement): number {
   return rate;
 }
 
+/**
+ * Small MP4s (under 25 MB) are accepted by Whisper directly — no browser extraction needed.
+ * Only files above this threshold go through the MediaRecorder / WebCodecs path.
+ */
+const SMALL_FILE_BYPASS_BYTES = 25 * 1024 * 1024;
+
 export function shouldOptimizeMediaForTranscript(file: File): boolean {
-  return /\.mp4$/i.test(file.name);
+  if (!/\.mp4$/i.test(file.name)) return false;
+  // Small MP4s can be sent straight to Whisper without extracting audio
+  return file.size > SMALL_FILE_BYPASS_BYTES;
+}
+
+/**
+ * Returns `true` when the browser cannot handle client-side audio extraction from
+ * a large MP4 and the file should be uploaded raw for server-side FFmpeg processing.
+ *
+ * This is the "last resort" fallback — used only when:
+ * - The MP4 is too large for Whisper to accept directly (> 25 MB)
+ * - WebCodecs API is unavailable
+ * - MediaRecorder with a supported MIME type is unavailable
+ */
+export function needsServerSideFfmpeg(file: File): boolean {
+  if (!/\.mp4$/i.test(file.name)) return false;
+
+  // Small MP4s (≤ 25 MB) go to Whisper directly — no extraction step needed
+  if (file.size <= SMALL_FILE_BYPASS_BYTES) return false;
+
+  // WebCodecs is the preferred extraction path
+  const hasWebCodecs =
+    typeof globalThis.AudioDecoder === "function" &&
+    typeof globalThis.AudioEncoder === "function" &&
+    typeof globalThis.EncodedAudioChunk === "function";
+  if (hasWebCodecs) return false;
+
+  // MediaRecorder is the secondary extraction path
+  const hasMediaRecorder =
+    typeof MediaRecorder !== "undefined" &&
+    PREFERRED_AUDIO_MIME_TYPES.some((t) => MediaRecorder.isTypeSupported(t));
+  if (hasMediaRecorder) return false;
+
+  return true;
 }
 
 export async function optimizeMediaForTranscript(
+  file: File,
+  onStageChange?: (message: string) => void,
+  options?: OptimizeMediaOptions,
+): Promise<OptimizedMediaResult> {
+  // Try WebCodecs first (10-50× faster than real-time playback)
+  try {
+    const { isWebCodecsSupported, extractAudioWithWebCodecs } = await import(
+      "@/lib/content/webCodecsAudioExtractor"
+    );
+
+    if (isWebCodecsSupported()) {
+      onStageChange?.("Extracting audio (fast mode)...");
+      const safeBaseName = sanitizeBaseName(file.name);
+      const onStreamPart = options?.onStreamPart;
+
+      const result = await extractAudioWithWebCodecs(file, (progress) => {
+        if (progress.stage === "demuxing") {
+          onStageChange?.(`Reading MP4 container... ${progress.percent}%`);
+        } else if (progress.stage === "encoding") {
+          onStageChange?.(`Encoding audio... ${progress.percent}%`);
+        }
+      });
+
+      const assets: OptimizedMediaAsset[] = [];
+      let streamIndex = 0;
+
+      for (const chunk of result.chunks) {
+        const outputFile = new File(
+          [chunk.blob],
+          `${safeBaseName}.part-${String(chunk.index + 1).padStart(3, "0")}.webm`,
+          { type: "audio/webm;codecs=opus" },
+        );
+
+        if (onStreamPart) {
+          onStageChange?.(`Uploading audio part ${chunk.index + 1}...`);
+          await onStreamPart({
+            index: streamIndex,
+            file: outputFile,
+            contentType: outputFile.type,
+            bytes: outputFile.size,
+          });
+          streamIndex++;
+        } else {
+          assets.push({
+            file: outputFile,
+            bytes: outputFile.size,
+            contentType: outputFile.type,
+          });
+        }
+      }
+
+      onStageChange?.("Audio extraction complete.");
+
+      return {
+        assets,
+        metadata: {
+          optimization_strategy: "webcodecs_audio_segments",
+          target_audio_bitrate: "64kbps",
+          target_audio_sample_rate: "16000",
+          segment_duration_seconds: 0,
+          original_file_size: file.size,
+          extraction_playback_rate: 0, // not applicable for WebCodecs
+          streaming_upload: Boolean(onStreamPart),
+          streamed_part_count: onStreamPart ? streamIndex : undefined,
+        },
+      };
+    }
+  } catch (webCodecsError) {
+    // WebCodecs failed or unsupported — fall back to MediaRecorder
+    console.warn(
+      "[clientMediaOptimizer] WebCodecs extraction failed, falling back to MediaRecorder:",
+      webCodecsError instanceof Error ? webCodecsError.message : webCodecsError,
+    );
+  }
+
+  // Fallback: MediaRecorder-based extraction (plays video at accelerated speed)
+  return optimizeMediaWithMediaRecorder(file, onStageChange, options);
+}
+
+/**
+ * Legacy MediaRecorder-based extraction. Plays the media at accelerated speed
+ * and captures the audio track. Used as fallback when WebCodecs is unavailable.
+ */
+async function optimizeMediaWithMediaRecorder(
   file: File,
   onStageChange?: (message: string) => void,
   options?: OptimizeMediaOptions,

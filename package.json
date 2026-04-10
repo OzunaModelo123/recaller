@@ -41,6 +41,7 @@
     "inngest": "^4.1.0",
     "lucide-react": "^1.7.0",
     "mammoth": "^1.12.0",
+    "mp4box": "^2.3.0",
     "next": "16.2.1",
     "openai": "^6.33.0",
     "pdf-parse": "^2.4.5",

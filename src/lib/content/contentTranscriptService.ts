@@ -118,5 +118,19 @@ export async function extractTranscriptFromFile(
 }
 
 export async function runBackgroundMediaTranscript(contentItemId: string): Promise<void> {
-  await transcribeUploadedMedia(contentItemId);
+  try {
+    const { inngest } = await import("@/lib/inngest/client");
+    await inngest.send({
+      name: "content/transcribe.requested",
+      data: { contentItemId },
+    });
+  } catch (dispatchError) {
+    // Inngest dispatch failed — fall back to direct transcription.
+    // This still works but may timeout on serverless platforms for large files.
+    console.warn(
+      "[runBackgroundMediaTranscript] Inngest dispatch failed, falling back to direct transcription:",
+      dispatchError instanceof Error ? dispatchError.message : dispatchError,
+    );
+    await transcribeUploadedMedia(contentItemId);
+  }
 }

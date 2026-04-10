@@ -8,8 +8,16 @@ describe("shouldOptimizeMediaForTranscript", () => {
     expect(shouldOptimizeMediaForTranscript(file)).toBe(false);
   });
 
-  it("keeps mp4 uploads on the transcript-audio path", () => {
-    const file = new File(["video"], "demo.mp4", { type: "video/mp4" });
-    expect(shouldOptimizeMediaForTranscript(file)).toBe(true);
+  it("optimizes large mp4 uploads via transcript-audio path", () => {
+    // Create a file stub that reports a size above the 25 MB bypass threshold
+    const largeFile = new File(["video"], "demo.mp4", { type: "video/mp4" });
+    Object.defineProperty(largeFile, "size", { value: 30 * 1024 * 1024 });
+    expect(shouldOptimizeMediaForTranscript(largeFile)).toBe(true);
+  });
+
+  it("bypasses optimization for small mp4 files (< 25 MB) — Whisper accepts them directly", () => {
+    const smallFile = new File(["video"], "demo.mp4", { type: "video/mp4" });
+    // Default File size from content is ~5 bytes, well under 25 MB
+    expect(shouldOptimizeMediaForTranscript(smallFile)).toBe(false);
   });
 });
