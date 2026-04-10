@@ -120,6 +120,14 @@ function applyFastPlayback(mediaElement: HTMLMediaElement): number {
  */
 const SMALL_FILE_BYPASS_BYTES = 25 * 1024 * 1024;
 
+/**
+ * Files above this size bypass browser extraction for reliability and go to
+ * server-side FFmpeg instead. Browser-based extraction (WebCodecs/MediaRecorder)
+ * is unreliable for very large files due to browser memory pressure, tab
+ * throttling, and silent data loss that produces partial/empty transcripts.
+ */
+const SERVER_FFMPEG_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
 export function shouldOptimizeMediaForTranscript(file: File): boolean {
   if (!/\.mp4$/i.test(file.name)) return false;
   // Small MP4s can be sent straight to Whisper without extracting audio
@@ -127,19 +135,22 @@ export function shouldOptimizeMediaForTranscript(file: File): boolean {
 }
 
 /**
- * Returns `true` when the browser cannot handle client-side audio extraction from
- * a large MP4 and the file should be uploaded raw for server-side FFmpeg processing.
+ * Returns `true` when the file should be uploaded raw for server-side FFmpeg
+ * processing instead of being extracted in the browser.
  *
- * This is the "last resort" fallback — used only when:
- * - The MP4 is too large for Whisper to accept directly (> 25 MB)
- * - WebCodecs API is unavailable
- * - MediaRecorder with a supported MIME type is unavailable
+ * Triggers when ANY of these are true:
+ * - The MP4 is very large (> 100 MB) — browser extraction is unreliable at this scale
+ * - WebCodecs API is unavailable AND MediaRecorder is unavailable
  */
 export function needsServerSideFfmpeg(file: File): boolean {
   if (!/\.mp4$/i.test(file.name)) return false;
 
   // Small MP4s (≤ 25 MB) go to Whisper directly — no extraction step needed
   if (file.size <= SMALL_FILE_BYPASS_BYTES) return false;
+
+  // Large files (> 100 MB) must use server-side FFmpeg — browser extraction is
+  // unreliable at this scale (memory pressure, tab throttling, silent data loss).
+  if (file.size > SERVER_FFMPEG_THRESHOLD_BYTES) return true;
 
   // WebCodecs is the preferred extraction path
   const hasWebCodecs =

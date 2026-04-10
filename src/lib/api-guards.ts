@@ -79,10 +79,26 @@ export function checkPlanGenerationRateLimit(
 /**
  * Check subscription status before allowing expensive operations.
  * Returns null if the subscription is valid, or an error message string if not.
+ *
+ * DEV BYPASS: Subscription checks are skipped in development so you can test all
+ * features before the billing system is wired up. Remove this bypass (or flip the
+ * flag below) before releasing to production.
  */
 export async function checkSubscriptionStatus(
   orgId: string,
 ): Promise<string | null> {
+  // ── DEV BYPASS ──────────────────────────────────────────────────────────────
+  // Comment this block out (or set ENABLE_SUBSCRIPTION_CHECKS=true in .env.local)
+  // when you're ready to enforce subscriptions.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_SUBSCRIPTION_CHECKS !== "true"
+  ) {
+    console.log("[api-guards] DEV MODE — subscription check bypassed for org", orgId);
+    return null;
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   try {
     const admin = createAdminClient();
     const { data: sub } = await admin
@@ -123,8 +139,20 @@ export async function checkSubscriptionStatus(
 /**
  * Check if org has room for more seats.
  * Returns null if under the limit, or an error message string if over.
+ *
+ * DEV BYPASS: Same development bypass as checkSubscriptionStatus above.
  */
 export async function checkSeatLimit(orgId: string): Promise<string | null> {
+  // ── DEV BYPASS ──────────────────────────────────────────────────────────────
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_SUBSCRIPTION_CHECKS !== "true"
+  ) {
+    console.log("[api-guards] DEV MODE — seat limit check bypassed for org", orgId);
+    return null;
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   try {
     const admin = createAdminClient();
 

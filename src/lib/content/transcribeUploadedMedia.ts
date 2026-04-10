@@ -265,6 +265,9 @@ async function transcribeMediaBuffer(
   buffer: Buffer,
   originalBasename: string,
 ): Promise<{ text: string; chunkCount: number }> {
+  const sizeMB = (buffer.byteLength / 1_048_576).toFixed(1);
+  console.log(`[transcribe] Processing ${originalBasename} (${sizeMB} MB)…`);
+
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "recaller-transcribe-"));
   const sourcePath = path.join(tempDir, originalBasename);
   const compressedAudioPath = path.join(tempDir, "normalized-audio.mp3");
@@ -282,23 +285,41 @@ async function transcribeMediaBuffer(
 
     if (isWhisperCompatible) {
       // Whisper handles this directly — no ffmpeg needed
+      console.log(`[transcribe] File under 25 MB — sending directly to Whisper`);
       chunks = [sourcePath];
     } else {
+      console.log(`[transcribe] Compressing to audio with FFmpeg…`);
       await compressMediaToAudio(sourcePath, compressedAudioPath);
+      const compressedStats = await fs.stat(compressedAudioPath);
+      console.log(
+        `[transcribe] Compressed to ${(compressedStats.size / 1_048_576).toFixed(1)} MB`,
+      );
       chunks = await splitAudioIntoChunks(compressedAudioPath, tempDir);
+      console.log(`[transcribe] Split into ${chunks.length} chunk(s) for Whisper`);
     }
 
     // Transcribe chunks concurrently (up to TRANSCRIPTION_CONCURRENCY at a time)
     const transcripts = await mapConcurrent(
       chunks,
       TRANSCRIPTION_CONCURRENCY,
-      async (chunkPath, index) => transcribeChunk(openai, chunkPath, index),
+      async (chunkPath, index) => {
+        console.log(`[transcribe] Transcribing chunk ${index + 1}/${chunks.length}…`);
+        const text = await transcribeChunk(openai, chunkPath, index);
+        console.log(
+          `[transcribe] Chunk ${index + 1}/${chunks.length} done (${text.length} chars)`,
+        );
+        return text;
+      },
     );
 
     const merged = transcripts.filter(Boolean).join("\n\n").trim();
     if (!merged) {
       throw new Error("Whisper returned empty text");
     }
+
+    console.log(
+      `[transcribe] ✅ Complete — ${merged.length} chars from ${chunks.length} chunk(s)`,
+    );
 
     return {
       text: merged,

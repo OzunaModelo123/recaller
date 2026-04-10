@@ -118,16 +118,30 @@ export async function extractTranscriptFromFile(
 }
 
 export async function runBackgroundMediaTranscript(contentItemId: string): Promise<void> {
-  // In local development, Inngest Cloud cannot reach localhost:3000, so events would
-  // queue up in the cloud but never get executed. We bypass Inngest entirely and run
-  // transcription directly inside the after() callback instead.
+  // In local development, try the Inngest local dev server first (started via
+  // `npm run inngest:dev` or `npm run dev:all`). It handles retries, timeouts,
+  // and fan-out better than inline execution — especially for large files.
   //
-  // In production (Vercel), NODE_ENV === "production" and Inngest Cloud can reach the
-  // deployed URL, so we use inngest.send() to hand off to the background worker.
+  // If the dev server isn't running, fall back to running transcription directly
+  // inside the after() callback.
+  //
+  // In production (Vercel), NODE_ENV === "production" and Inngest Cloud can reach
+  // the deployed URL, so we always use inngest.send().
   if (process.env.NODE_ENV !== "production") {
-    console.log("[runBackgroundMediaTranscript] Dev mode — running transcription directly (no Inngest)");
-    await transcribeUploadedMedia(contentItemId);
-    return;
+    try {
+      const { inngest } = await import("@/lib/inngest/client");
+      await inngest.send({
+        name: "content/transcribe.requested",
+        data: { contentItemId },
+      });
+      console.log("[runBackgroundMediaTranscript] Dev mode — dispatched to local Inngest dev server");
+      return;
+    } catch {
+      // Inngest dev server not running — fall back to inline execution
+      console.log("[runBackgroundMediaTranscript] Dev mode — Inngest dev server not available, running transcription directly");
+      await transcribeUploadedMedia(contentItemId);
+      return;
+    }
   }
 
   try {

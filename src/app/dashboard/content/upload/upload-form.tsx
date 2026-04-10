@@ -416,6 +416,9 @@ export function ContentUploadForm() {
 
             if (serverFallback) {
               clientMeta = { optimization_strategy: "server_ffmpeg" };
+              setFileStatus(
+                "Large video detected — uploading for server-side processing…",
+              );
             }
 
             const item: UploadItem = {
