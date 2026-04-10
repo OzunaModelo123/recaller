@@ -30,9 +30,8 @@ import { createClient } from "@/lib/supabase/server";
 export default async function EmployeeHomePage() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const profile = await getEmployeeSessionProfile(user.id, user.email);

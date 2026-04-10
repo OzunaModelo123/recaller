@@ -1,5 +1,7 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 
+import { checkPlanGenerationRateLimit, checkSubscriptionStatus } from "@/lib/api-guards";
 import { analyzeContent } from "@/lib/ai/contentAnalyzer";
 import {
   contentItemHasEmbeddings,
@@ -67,6 +69,26 @@ export async function POST(request: Request) {
   }
 
   const orgId = profile.org_id;
+
+  // ── Rate limiting (10/hr per user, 50/day per org) ──
+  const rateCheck = checkPlanGenerationRateLimit(user.id, orgId);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: rateCheck.reason },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)),
+        },
+      },
+    );
+  }
+
+  // ── Subscription enforcement ──
+  const subError = await checkSubscriptionStatus(orgId);
+  if (subError) {
+    return NextResponse.json({ error: subError }, { status: 403 });
+  }
 
   const { data: org, error: orgErr } = await supabase
     .from("organisations")
@@ -241,6 +263,10 @@ export async function POST(request: Request) {
           await purgeContentSourceFile(supabase, contentItemId);
         } catch (purgeErr) {
           console.error("[plans/generate] purge source file", contentItemId, purgeErr);
+          Sentry.captureException(purgeErr, {
+            tags: { scope: "storage", action: "purge-source-file" },
+            extra: { contentItemId },
+          });
         }
 
         push({

@@ -25,9 +25,8 @@ export default async function TeamMemberHistoryPage({ params }: Props) {
   const { id: memberId } = await params;
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: me } = await supabase

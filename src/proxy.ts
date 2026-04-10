@@ -20,6 +20,7 @@ function isAuthPath(pathname: string) {
   return (
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/callback")
   );
 }

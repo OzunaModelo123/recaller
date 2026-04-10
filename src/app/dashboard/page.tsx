@@ -90,9 +90,8 @@ function formatRole(role: string): string {
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let fullName = "there";
   let orgName = "your organization";

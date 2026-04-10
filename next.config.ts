@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-/** Baseline hardening; CSP omitted (Next.js + inline scripts need a tuned policy). */
+/** Baseline hardening; CSP in report-only mode for now. */
 const securityHeaders: { key: string; value: string }[] = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -10,6 +10,18 @@ const securityHeaders: { key: string; value: string }[] = [
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+  },
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.supabase.co https://api.openai.com https://api.anthropic.com https://api.stripe.com wss://*.supabase.co",
+      "frame-src 'self' https://js.stripe.com",
+    ].join("; "),
   },
 ];
 

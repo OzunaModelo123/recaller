@@ -1,4 +1,5 @@
 // Evidence is readable by org admins via existing step_completions_select_org_scope (Phase 5 manager UI).
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 
 import {
@@ -120,19 +121,8 @@ export async function POST(request: Request) {
     storage_path: evidence.storage_path?.trim() || undefined,
   } satisfies Record<string, unknown>;
 
-  const { data: existing } = await supabase
-    .from("step_completions")
-    .select("id")
-    .eq("assignment_id", assignmentId)
-    .eq("step_number", stepNumber)
-    .maybeSingle();
 
-  if (existing) {
-    return NextResponse.json(
-      { error: "This step is already marked complete" },
-      { status: 409 },
-    );
-  }
+  // No pre-check SELECT — rely on the unique constraint for atomic duplicate prevention.
 
   const { error: insErr } = await supabase.from("step_completions").insert({
     assignment_id: assignmentId,
@@ -204,6 +194,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("[completions] Admin Slack notify failed", e);
+    Sentry.captureException(e, { tags: { scope: "notification", channel: "slack-admin" } });
   }
 
   if (platform === "web") {
@@ -215,6 +206,7 @@ export async function POST(request: Request) {
       });
     } catch (e) {
       console.error("[completions] Slack DM refresh failed", e);
+      Sentry.captureException(e, { tags: { scope: "notification", channel: "slack-dm" } });
     }
     try {
       await refreshTeamsAssignmentCardAfterWebCompletion({
@@ -224,6 +216,7 @@ export async function POST(request: Request) {
       });
     } catch (e) {
       console.error("[completions] Teams card refresh failed", e);
+      Sentry.captureException(e, { tags: { scope: "notification", channel: "teams-card" } });
     }
   }
 

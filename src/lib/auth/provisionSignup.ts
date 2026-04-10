@@ -73,6 +73,26 @@ export async function provisionSignupIfNeeded(
         };
       }
 
+      // ── Seat limit enforcement ──
+      const [{ data: sub }, { count: currentUsers }] = await Promise.all([
+        admin
+          .from("subscriptions")
+          .select("seat_limit")
+          .eq("org_id", invitedOrgId)
+          .maybeSingle(),
+        admin
+          .from("users")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", invitedOrgId),
+      ]);
+
+      if (sub?.seat_limit && (currentUsers ?? 0) >= sub.seat_limit) {
+        return {
+          ok: false,
+          error: `Your organization has reached its seat limit (${sub.seat_limit}). Ask your admin to upgrade the plan.`,
+        };
+      }
+
       const { error: userError } = await admin.from("users").insert({
         id: user.id,
         org_id: invitedOrgId,

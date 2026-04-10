@@ -72,7 +72,7 @@ function decodeJwtParts(token: string): {
 export async function verifyTeamsJwt(
   authHeader: string | null,
 ): Promise<{ valid: true; payload: JwtPayload } | { valid: false; reason: string }> {
-  if (process.env.TEAMS_SKIP_JWT_VERIFY === "true") {
+  if (process.env.TEAMS_SKIP_JWT_VERIFY === "true" && process.env.NODE_ENV !== "production") {
     if (!authHeader) return { valid: true, payload: {} };
     try {
       const token = authHeader.replace(/^Bearer\s+/i, "");

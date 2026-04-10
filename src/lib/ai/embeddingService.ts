@@ -146,17 +146,26 @@ export async function embedContentItem(
 
   await admin.from("content_embeddings").delete().eq("content_item_id", contentItemId);
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunkText = chunks[i]!;
-    const embedding = await generateEmbedding(chunkText);
-    const { error: insErr } = await admin.from("content_embeddings").insert({
-      content_item_id: contentItemId,
-      org_id: orgId,
-      chunk_index: i,
-      chunk_text: chunkText,
-      embedding: vectorParamEmbedding(embedding),
-    });
-    if (insErr) throw new Error(insErr.message);
+  // Batch embeddings for performance — OpenAI supports array inputs
+  const BATCH_SIZE = 8;
+  for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
+    const batchChunks = chunks.slice(batchStart, batchStart + BATCH_SIZE);
+    const embeddings = await Promise.all(
+      batchChunks.map((chunkText) => generateEmbedding(chunkText)),
+    );
+
+    for (let j = 0; j < batchChunks.length; j++) {
+      const chunkText = batchChunks[j]!;
+      const embedding = embeddings[j]!;
+      const { error: insErr } = await admin.from("content_embeddings").insert({
+        content_item_id: contentItemId,
+        org_id: orgId,
+        chunk_index: batchStart + j,
+        chunk_text: chunkText,
+        embedding: vectorParamEmbedding(embedding),
+      });
+      if (insErr) throw new Error(insErr.message);
+    }
   }
 
   const { error: upErr } = await admin

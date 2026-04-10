@@ -11,9 +11,8 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
   const { id: assignmentId } = await params;
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: assignment, error: aErr } = await supabase

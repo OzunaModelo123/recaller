@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -9,6 +9,53 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+function PasswordStrength({ password }: { password: string }) {
+  const checks = useMemo(() => {
+    return [
+      { label: "8+ characters", met: password.length >= 8 },
+      { label: "Uppercase letter", met: /[A-Z]/.test(password) },
+      { label: "Number", met: /\d/.test(password) },
+    ];
+  }, [password]);
+
+  const metCount = checks.filter((c) => c.met).length;
+  const strength =
+    metCount === checks.length ? "strong" : metCount >= 2 ? "medium" : "weak";
+  const barColor =
+    strength === "strong"
+      ? "bg-emerald-500"
+      : strength === "medium"
+        ? "bg-amber-500"
+        : "bg-red-400";
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1">
+        {checks.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors ${
+              i < metCount ? barColor : "bg-muted"
+            }`}
+          />
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
+        {checks.map((c) => (
+          <li
+            key={c.label}
+            className={`text-[11px] transition-colors ${
+              c.met ? "text-emerald-600" : "text-muted-foreground"
+            }`}
+          >
+            {c.met ? "✓" : "○"} {c.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -179,6 +226,9 @@ export default function SignupPage() {
                     className="h-11 rounded-xl"
                     required
                   />
+                  {password.length > 0 && (
+                    <PasswordStrength password={password} />
+                  )}
                 </div>
 
                 {error ? (

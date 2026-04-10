@@ -1,14 +1,26 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 
+function requireKey(name: string): string {
+  const key = process.env[name];
+  if (!key?.trim()) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(`Missing required environment variable: ${name}`);
+    }
+    console.warn(`[modelRouter] ${name} is not set — AI features will fail.`);
+    return "";
+  }
+  return key;
+}
+
 /** Anthropic client — Claude for content analysis (Stage 1) and narrative reports. */
 export const anthropicClient = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  apiKey: requireKey("ANTHROPIC_API_KEY"),
 });
 
 /** OpenAI client — GPT-4.1 for plan generation (Stage 2), GPT-4.1 Mini for validation (Stage 3), embeddings. */
 export const openaiClient = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY ?? "",
+  apiKey: requireKey("OPENAI_API_KEY"),
 });
 
 export const ANALYSIS_MODEL = "claude-sonnet-4-20250514";
