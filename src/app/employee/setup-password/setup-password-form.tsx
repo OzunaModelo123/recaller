@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { completeEmployeePasswordSetupAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,18 +28,14 @@ export function SetupPasswordForm() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { error: upErr } = await supabase.auth.updateUser({
-      password,
-      data: { password_set_at: new Date().toISOString() },
-    });
-    if (upErr) {
-      setError(upErr.message);
-      setLoading(false);
+    const result = await completeEmployeePasswordSetupAction(password);
+    setLoading(false);
+
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
 
-    await supabase.auth.refreshSession();
     router.replace("/employee");
     router.refresh();
   }
