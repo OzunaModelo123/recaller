@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { buildInviteRedirectTo } from "@/lib/auth/invite-redirect";
 import {
   logPostgrestError,
   sanitizedPostgrestError,
@@ -96,11 +97,12 @@ export async function inviteTeamMember(
     return { ok: false, error: sanitizedPostgrestError(invErr) };
   }
 
+  const inviteRedirect = buildInviteRedirectTo(baseUrl, "/employee/setup-password");
   const { error: invAuthErr } = await admin.auth.admin.inviteUserByEmail(email, {
     // Supabase's invite redirect option name can differ between helpers/SDK versions.
     // We include both to ensure the user lands on our app to complete the invite flow.
-    redirectTo: `${baseUrl}/callback`,
-    emailRedirectTo: `${baseUrl}/callback`,
+    redirectTo: inviteRedirect,
+    emailRedirectTo: inviteRedirect,
     data: {
       invited_org_id: profile.org_id,
     },

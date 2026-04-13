@@ -1,19 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import type { User } from "@supabase/supabase-js";
+import { employeeInviteNeedsPassword } from "@/lib/auth/employee-invite-state";
 
 function isProtectedPath(pathname: string) {
   return pathname.startsWith("/dashboard") || pathname.startsWith("/employee");
-}
-
-function employeeInviteNeedsPassword(user: User | null): boolean {
-  if (!user) return false;
-  const meta = user.user_metadata ?? {};
-  const invited =
-    typeof meta.invited_org_id === "string" && meta.invited_org_id.length > 0;
-  const set =
-    typeof meta.password_set_at === "string" && meta.password_set_at.length > 0;
-  return invited && !set;
 }
 
 function isAuthPath(pathname: string) {

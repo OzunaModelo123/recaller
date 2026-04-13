@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { buildInviteRedirectTo } from "@/lib/auth/invite-redirect";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -112,9 +113,11 @@ export async function bulkInviteFromCsvAction(csvText: string): Promise<BulkResu
       continue;
     }
 
+    const nextPath = row.role === "admin" ? "/post-login" : "/employee/setup-password";
+    const inviteRedirect = buildInviteRedirectTo(baseUrl, nextPath);
     const { error: authErr } = await admin.auth.admin.inviteUserByEmail(row.email, {
-      redirectTo: `${baseUrl}/callback`,
-      emailRedirectTo: `${baseUrl}/callback`,
+      redirectTo: inviteRedirect,
+      emailRedirectTo: inviteRedirect,
       data: {
         invited_org_id: profile.org_id,
         full_name: row.fullName,

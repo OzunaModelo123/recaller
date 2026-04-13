@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { employeeInviteNeedsPassword } from "@/lib/auth/employee-invite-state";
 import { sanitizeInternalNext } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,17 @@ function LoginFormInner() {
       if (setErr) {
         // Keep the existing login UI, but surface the error.
         setError(setErr.message);
+        return;
+      }
+
+      const {
+        data: { user: sessionUser },
+      } = await supabase.auth.getUser();
+
+      if (employeeInviteNeedsPassword(sessionUser)) {
+        window.history.replaceState({}, document.title, "/login");
+        router.replace("/employee/setup-password");
+        router.refresh();
         return;
       }
 
