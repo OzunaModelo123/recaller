@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Server never sees `#access_token=…` on `/post-login`. Recover session in the browser,
- * then `router.refresh()` so the Server Component can provision and redirect.
+ * Server never sees `#access_token=…` on `/post-login`. Persist the session, then
+ * hard-navigate to `/auth/invite` so routing matches the normal invite flow.
  */
 export function PostLoginSessionRecover() {
   const router = useRouter();
@@ -37,8 +37,7 @@ export function PostLoginSessionRecover() {
         setFailed(error.message);
         return;
       }
-      window.history.replaceState({}, document.title, "/post-login");
-      router.refresh();
+      window.location.assign("/auth/invite");
     })();
 
     return () => {

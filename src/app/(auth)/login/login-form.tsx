@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { employeeInviteNeedsPassword } from "@/lib/auth/employee-invite-state";
 import { sanitizeInternalNext } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,6 @@ function LoginFormInner() {
   const searchParams = useSearchParams();
   const setupError = searchParams.get("error");
   const next = sanitizeInternalNext(searchParams.get("next"));
-  const authCode = searchParams.get("code");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,98 +22,20 @@ function LoginFormInner() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Supabase invite acceptance may land on `/login` with auth tokens in the URL hash:
-    // `/login#access_token=...&refresh_token=...`
-    // Hash fragments are not sent to the server, so we must finalize the session client-side.
     const hash = window.location.hash?.startsWith("#")
       ? window.location.hash.slice(1)
       : "";
-    if (!hash) return;
-
-    const sp = new URLSearchParams(hash);
-    const accessToken = sp.get("access_token");
-    const refreshToken = sp.get("refresh_token");
-    if (!accessToken || !refreshToken) return;
-
-    let cancelled = false;
-    (async () => {
-      const supabase = createClient();
-      const { error: setErr } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      if (cancelled) return;
-      if (setErr) {
-        // Keep the existing login UI, but surface the error.
-        setError(setErr.message);
-        return;
-      }
-
-      const {
-        data: { user: sessionUser },
-      } = await supabase.auth.getUser();
-
-      if (employeeInviteNeedsPassword(sessionUser)) {
-        window.history.replaceState({}, document.title, "/login");
-        router.replace("/employee/setup-password");
-        router.refresh();
-        return;
-      }
-
-      // Remove tokens from the address bar (they are now in cookies).
-      window.history.replaceState({}, document.title, next === "/post-login" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
-
-      // Provision + routing (including invite password gate) happen in /post-login.
-      router.replace(next === "/post-login" ? "/post-login" : `/post-login?next=${encodeURIComponent(next)}`);
-      router.refresh();
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [next, router]);
-
-  useEffect(() => {
-    if (!authCode) return;
-
-    let cancelled = false;
-    (async () => {
-      const supabase = createClient();
-      const { error: exErr } = await supabase.auth.exchangeCodeForSession(authCode);
-      if (cancelled) return;
-      if (exErr) {
-        setError(exErr.message);
-        return;
-      }
-
-      const cleanQuery = new URLSearchParams();
-      if (next && next !== "/post-login") cleanQuery.set("next", next);
-      const qs = cleanQuery.toString();
-      window.history.replaceState(
-        {},
-        document.title,
-        qs ? `/login?${qs}` : "/login",
-      );
-
-      const {
-        data: { user: sessionUser },
-      } = await supabase.auth.getUser();
-
-      if (employeeInviteNeedsPassword(sessionUser)) {
-        router.replace("/employee/setup-password");
-        router.refresh();
-        return;
-      }
-
-      router.replace(next === "/post-login" ? "/post-login" : `/post-login?next=${encodeURIComponent(next)}`);
-      router.refresh();
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authCode, next, router]);
+    const hasTokens =
+      Boolean(new URLSearchParams(hash).get("access_token")) &&
+      Boolean(new URLSearchParams(hash).get("refresh_token"));
+    const hasCode = Boolean(
+      new URLSearchParams(window.location.search).get("code"),
+    );
+    if (!hasTokens && !hasCode) return;
+    window.location.replace(
+      `/auth/invite${window.location.search}${window.location.hash}`,
+    );
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
