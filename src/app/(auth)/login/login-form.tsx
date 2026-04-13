@@ -16,6 +16,7 @@ function LoginFormInner() {
   const searchParams = useSearchParams();
   const setupError = searchParams.get("error");
   const next = sanitizeInternalNext(searchParams.get("next"));
+  const authCode = searchParams.get("code");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,6 +75,47 @@ function LoginFormInner() {
       cancelled = true;
     };
   }, [next, router]);
+
+  useEffect(() => {
+    if (!authCode) return;
+
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { error: exErr } = await supabase.auth.exchangeCodeForSession(authCode);
+      if (cancelled) return;
+      if (exErr) {
+        setError(exErr.message);
+        return;
+      }
+
+      const cleanQuery = new URLSearchParams();
+      if (next && next !== "/post-login") cleanQuery.set("next", next);
+      const qs = cleanQuery.toString();
+      window.history.replaceState(
+        {},
+        document.title,
+        qs ? `/login?${qs}` : "/login",
+      );
+
+      const {
+        data: { user: sessionUser },
+      } = await supabase.auth.getUser();
+
+      if (employeeInviteNeedsPassword(sessionUser)) {
+        router.replace("/employee/setup-password");
+        router.refresh();
+        return;
+      }
+
+      router.replace(next === "/post-login" ? "/post-login" : `/post-login?next=${encodeURIComponent(next)}`);
+      router.refresh();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authCode, next, router]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

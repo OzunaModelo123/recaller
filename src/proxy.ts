@@ -41,12 +41,12 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Use getSession (cookie + JWT) instead of getUser (network round-trip to Auth).
-  // Avoids long hangs when Supabase Auth is slow or the project is waking from pause.
+  // Use getUser() so decisions match Server Components (e.g. /post-login). getSession()
+  // alone caused /login ↔ /post-login loops when the session cookie existed but RSC
+  // auth disagreed during the invite hash → cookie handoff.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 

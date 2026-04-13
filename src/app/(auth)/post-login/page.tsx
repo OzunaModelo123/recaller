@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
 import { sanitizeInternalNext } from "@/lib/auth/safe-next";
+import { PostLoginSessionRecover } from "./session-recover";
 
 export default async function PostLoginPage(props: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -19,7 +20,7 @@ export default async function PostLoginPage(props: {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    return <PostLoginSessionRecover />;
   }
 
   const admin = createAdminClient();
