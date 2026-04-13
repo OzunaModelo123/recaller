@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Home, BrainCircuit } from "lucide-react";
+import { BookOpen, Home, BrainCircuit, NotebookPen } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,12 @@ const items = [
     label: "My Plans",
     icon: BookOpen,
     isActive: (p: string) => p.startsWith("/employee/my-plans"),
+  },
+  {
+    href: "/employee/notes",
+    label: "My Notes",
+    icon: NotebookPen,
+    isActive: (p: string) => p.startsWith("/employee/notes"),
   },
 ] as const;
 

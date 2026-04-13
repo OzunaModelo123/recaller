@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     // Verify assignment belongs to user
     const { data: assignment, error: assErr } = await supabase
       .from("assignments")
-      .select("id, assigned_to, content_consumed")
+      .select("id, assigned_to, content_consumed, require_content_consumption")
       .eq("id", assignmentId)
       .eq("assigned_to", user.id)
       .single();
@@ -37,6 +37,13 @@ export async function POST(req: Request) {
 
     // Handle Heartbeat
     if (action === "heartbeat") {
+      if (!assignment.require_content_consumption) {
+        return NextResponse.json(
+          { error: "Content consumption is not tracked for this assignment" },
+          { status: 400 },
+        );
+      }
+
       const wTime = watchTimeSeconds ? Number(watchTimeSeconds) : null;
       if (wTime === null || isNaN(wTime)) {
         return NextResponse.json({ error: "Invalid watch time" }, { status: 400 });
@@ -69,6 +76,13 @@ export async function POST(req: Request) {
 
     // Handle Complete
     if (action === "complete") {
+      if (!assignment.require_content_consumption) {
+        return NextResponse.json(
+          { error: "Content consumption is not required for this assignment" },
+          { status: 400 },
+        );
+      }
+
       const { data: existing } = await supabase
         .from("content_consumptions")
         .select("id")

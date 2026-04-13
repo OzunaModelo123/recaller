@@ -26,6 +26,14 @@ export function getEmployeeRouteTitle(pathname: string): {
     return { sectionLabel: "Connections", pageLabel: "Integrations" };
   }
 
+  if (p.startsWith("/employee/daily-recall")) {
+    return { sectionLabel: "Learning", pageLabel: "Daily recall" };
+  }
+
+  if (p.startsWith("/employee/notes")) {
+    return { sectionLabel: "Workspace", pageLabel: "My notes" };
+  }
+
   if (p.startsWith("/employee/setup-password")) {
     return { sectionLabel: "Account", pageLabel: "Set password" };
   }

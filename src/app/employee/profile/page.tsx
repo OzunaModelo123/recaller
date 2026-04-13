@@ -5,6 +5,7 @@ import {
   BarChart3,
   Clock,
   Flame,
+  BrainCircuit,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/design/page-header";
@@ -80,6 +81,14 @@ export default async function ProfilePage() {
       ? Math.round((completedAssignments / totalAssignments) * 100)
       : 0;
 
+  // Fetch Retention Score
+  const { data: sessions } = await supabase
+    .from("review_sessions")
+    .select("retention_score_delta")
+    .eq("user_id", user.id);
+
+  const totalRetentionScore = sessions?.reduce((sum, session) => sum + (session.retention_score_delta || 0), 0) || 0;
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -87,7 +96,7 @@ export default async function ProfilePage() {
         subtitle="Your stats, personal details, and connected platforms."
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
         <StatCard
           icon={<Award className="h-5 w-5 text-primary" />}
           label="Plans completed"
@@ -107,6 +116,11 @@ export default async function ProfilePage() {
           icon={<Flame className="h-5 w-5 text-primary" />}
           label="Current streak"
           value={`${currentStreak} day${currentStreak !== 1 ? "s" : ""}`}
+        />
+        <StatCard
+          icon={<BrainCircuit className="h-5 w-5 text-primary" />}
+          label="Retention Score"
+          value={String(totalRetentionScore)}
         />
       </div>
 

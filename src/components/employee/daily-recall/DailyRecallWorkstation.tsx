@@ -72,9 +72,9 @@ export function DailyRecallWorkstation({ dueCards, todayScore }: { dueCards: Rev
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex flex-col items-center justify-center p-8 sm:p-12 space-y-8 text-center min-h-[34rem] rounded-[2rem] bg-gradient-to-b from-card/80 to-background border border-border shadow-2xl relative overflow-hidden"
+        className="flex flex-col items-center justify-center p-6 sm:p-12 space-y-8 text-center min-h-[34rem] rounded-[2rem] bg-gradient-to-b from-card/80 to-background border border-border flex-1 shadow-2xl relative overflow-hidden"
       >
-        <div className="absolute top-0 inset-x-0 h-40 bg-primary/10 blur-3xl rounded-full translate-y-[-50%]" />
+        <div className="absolute top-0 inset-x-0 h-40 w-full bg-primary/10 blur-3xl rounded-full translate-y-[-50%]" />
         
         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-2 shadow-inner z-10">
           <BrainCircuit className="w-12 h-12 text-primary drop-shadow-sm" />
@@ -138,10 +138,11 @@ export function DailyRecallWorkstation({ dueCards, todayScore }: { dueCards: Rev
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -20, opacity: 0 }}
           transition={{ duration: 0.3 }}
+          className="w-full"
         >
-          <Card className="group border border-border/50 shadow-lg bg-card/60 backdrop-blur transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-            <CardContent className="p-6 sm:p-8 space-y-8">
-              <h2 className="text-xl sm:text-2xl font-semibold leading-relaxed text-foreground">
+          <Card className="group w-full border border-border/50 shadow-lg bg-card/60 backdrop-blur transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            <CardContent className="p-5 sm:p-8 space-y-8">
+              <h2 className="text-lg sm:text-2xl font-semibold leading-relaxed text-foreground break-words">
                 {q.question_text}
               </h2>
 
@@ -163,11 +164,11 @@ export function DailyRecallWorkstation({ dueCards, todayScore }: { dueCards: Rev
 
                   return (
                     <button
-                      key={idx}
+                      key={`opt-${idx}`}
                       disabled={isAnswered || isSubmitting}
                       onClick={() => handleSelectOption(idx)}
                       className={cn(
-                        "w-full text-left p-4 rounded-xl border text-base font-medium transition-all duration-200",
+                        "w-full text-left p-3 sm:p-4 rounded-xl border text-sm sm:text-base font-medium transition-all duration-200",
                         "flex items-center justify-between group",
                         optionClass,
                         (!isAnswered && !isSubmitting) && "active:scale-[0.98]"

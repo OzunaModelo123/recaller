@@ -27,6 +27,9 @@ export const assignReviewCards = inngest.createFunction(
         .select(`
           id,
           org_id,
+          assigned_to,
+          require_content_consumption,
+          content_consumed,
           plans (
             id,
             content_item_id
@@ -34,15 +37,28 @@ export const assignReviewCards = inngest.createFunction(
         `)
         .eq("id", assignmentId)
         .single();
-      
+
       if (error || !data) {
         throw new Error(error?.message || "Assignment not found");
       }
-      
-      // Ensure the plan has a content_item_id
+
+      if (data.assigned_to !== userId) {
+        return { ok: false as const, reason: "user_mismatch" };
+      }
+      if (!data.require_content_consumption || !data.content_consumed) {
+        return {
+          ok: false as const,
+          reason: "consumption_not_required_or_incomplete",
+        };
+      }
+
       const contentItemId = planContentItemId(data.plans);
-      return { contentItemId, orgId: data.org_id };
+      return { ok: true as const, contentItemId };
     });
+
+    if (!assignmentData.ok) {
+      return { message: `Skipped assignReviewCards: ${assignmentData.reason}` };
+    }
 
     const contentItemId = assignmentData.contentItemId;
     if (!contentItemId) {

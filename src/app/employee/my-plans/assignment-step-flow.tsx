@@ -12,10 +12,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import type { ProofType } from "@/lib/proof";
 import { evidenceSatisfiesProof } from "@/lib/proof";
 import { ArrowLeft, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { AddToCalendar } from "@/components/employee/AddToCalendar";
+import { escapeHtml, safeHttpUrl } from "@/lib/utils";
 
 export type EmployeePlanStep = {
   step_number: number;
@@ -68,6 +77,10 @@ export function AssignmentStepFlow({
   const [evidenceText, setEvidenceText] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [consumed, setConsumed] = useState(!!contentConsumed);
+
+  const [showReflection, setShowReflection] = useState(false);
+  const [reflectionText, setReflectionText] = useState("");
+  const [reflectionSaving, setReflectionSaving] = useState(false);
 
   const sorted = useMemo(
     () => [...steps].sort((a, b) => a.step_number - b.step_number),
@@ -139,6 +152,7 @@ export function AssignmentStepFlow({
       router.refresh();
       if (next.size >= total) {
         setCelebrate(true);
+        setTimeout(() => setShowReflection(true), 2000); // trigger reflection after 2s of celebration
       }
     } catch {
       setError("Network error");
@@ -162,6 +176,108 @@ export function AssignmentStepFlow({
           onDismiss={() => setCelebrate(false)}
         />
       )}
+
+      <Dialog open={showReflection} onOpenChange={setShowReflection}>
+        <DialogContent className="sm:max-w-lg border-primary/20 bg-card backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold tracking-tight">Reflection Journal</DialogTitle>
+            <DialogDescription className="text-[14px]">
+              Great job completing this assignment! What are your key takeaways? 
+              <br/>This reflection (along with any bookmarks you saved) will be stored in your Personal Notes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              value={reflectionText}
+              onChange={(e) => setReflectionText(e.target.value)}
+              placeholder="I learned that..."
+              className="min-h-[150px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowReflection(false)}
+              disabled={reflectionSaving}
+            >
+              Skip
+            </Button>
+            <Button
+              disabled={reflectionSaving || !reflectionText.trim()}
+              onClick={async () => {
+                setReflectionSaving(true);
+                try {
+                  // Fetch Bookmarks for this assignment
+                  let appendedBookmarksHtml = "";
+                  try {
+                    const bmRes = await fetch(`/api/bookmarks?assignmentId=${assignmentId}`);
+                    const bmData = await bmRes.json();
+                    if (bmData.bookmarks && bmData.bookmarks.length > 0) {
+                      type Bm = {
+                        timestamp_seconds: number | null;
+                        note_text: string | null;
+                        content_items: { source_url: string | null } | null;
+                      };
+                      const list = bmData.bookmarks as Bm[];
+                      appendedBookmarksHtml = `
+                         <br/>
+                         <hr/>
+                         <blockquote>
+                           <strong>Bookmarks saved during this session:</strong>
+                           <ul>
+                             ${list
+                               .map((b) => {
+                                 const ts = b.timestamp_seconds ?? 0;
+                                 let link = safeHttpUrl(b.content_items?.source_url);
+                                 if (
+                                   link !== "#" &&
+                                   (link.includes("youtube.com") ||
+                                     link.includes("youtu.be"))
+                                 ) {
+                                   const sep = link.includes("?") ? "&" : "?";
+                                   link = `${link}${sep}t=${ts}`;
+                                 }
+                                 const timeFormat = new Date(ts * 1000)
+                                   .toISOString()
+                                   .substring(11, 19)
+                                   .replace(/^00:/, "");
+                                 const label = escapeHtml(b.note_text?.trim() || "Bookmark");
+                                 return `<li><a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">[${timeFormat}]</a> ${label}</li>`;
+                               })
+                               .join("")}
+                           </ul>
+                         </blockquote>
+                       `;
+                    }
+                  } catch (e) {
+                    console.error("Failed to fetch bookmarks for inclusion", e);
+                  }
+
+                  const finalHtml = `<p>${escapeHtml(reflectionText).replace(/\n/g, "<br/>")}</p>${appendedBookmarksHtml}`;
+
+                  await fetch("/api/notes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      title: `Reflection on ${planTitle}`,
+                      content_html: finalHtml,
+                      assignment_id: assignmentId,
+                      tags: ["reflection"],
+                    }),
+                  });
+                  setShowReflection(false);
+                } catch(e) {
+                  console.error(e);
+                } finally {
+                  setReflectionSaving(false);
+                }
+              }}
+            >
+              {reflectionSaving ? "Saving Note..." : "Save Reflection & Bookmarks"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-4">
         <Link

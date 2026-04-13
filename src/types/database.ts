@@ -54,12 +54,14 @@ export type Database = {
           assigned_by: string
           assigned_to: string
           assigner_note: string | null
+          content_consumed: boolean
           created_at: string
           due_date: string | null
           group_id: string | null
           id: string
           org_id: string
           plan_id: string
+          require_content_consumption: boolean
           scheduled_for: string | null
           status: string
         }
@@ -67,12 +69,14 @@ export type Database = {
           assigned_by: string
           assigned_to: string
           assigner_note?: string | null
+          content_consumed?: boolean
           created_at?: string
           due_date?: string | null
           group_id?: string | null
           id?: string
           org_id: string
           plan_id: string
+          require_content_consumption?: boolean
           scheduled_for?: string | null
           status?: string
         }
@@ -80,12 +84,14 @@ export type Database = {
           assigned_by?: string
           assigned_to?: string
           assigner_note?: string | null
+          content_consumed?: boolean
           created_at?: string
           due_date?: string | null
           group_id?: string | null
           id?: string
           org_id?: string
           plan_id?: string
+          require_content_consumption?: boolean
           scheduled_for?: string | null
           status?: string
         }
@@ -123,6 +129,57 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_consumptions: {
+        Row: {
+          assignment_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          platform: string
+          started_at: string
+          updated_at: string
+          user_id: string
+          watch_time_seconds: number
+        }
+        Insert: {
+          assignment_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          platform?: string
+          started_at?: string
+          updated_at?: string
+          user_id: string
+          watch_time_seconds?: number
+        }
+        Update: {
+          assignment_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          platform?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+          watch_time_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_consumptions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_consumptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -226,6 +283,122 @@ export type Database = {
           {
             foreignKeyName: "content_items_uploaded_by_fkey"
             columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_bookmarks: {
+        Row: {
+          content_item_id: string
+          created_at: string
+          highlight_text: string | null
+          id: string
+          note_text: string | null
+          timestamp_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          content_item_id: string
+          created_at?: string
+          highlight_text?: string | null
+          id?: string
+          note_text?: string | null
+          timestamp_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          content_item_id?: string
+          created_at?: string
+          highlight_text?: string | null
+          id?: string
+          note_text?: string | null
+          timestamp_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_bookmarks_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_bookmarks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_notes: {
+        Row: {
+          assignment_id: string | null
+          content_html: string | null
+          content_item_id: string | null
+          content_json: Json | null
+          created_at: string
+          id: string
+          org_id: string
+          tags: Json | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          content_html?: string | null
+          content_item_id?: string | null
+          content_json?: Json | null
+          created_at?: string
+          id?: string
+          org_id: string
+          tags?: Json | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string | null
+          content_html?: string | null
+          content_item_id?: string | null
+          content_json?: Json | null
+          created_at?: string
+          id?: string
+          org_id?: string
+          tags?: Json | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_notes_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_notes_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_notes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_notes_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -695,6 +868,133 @@ export type Database = {
           },
         ]
       }
+      quiz_questions: {
+        Row: {
+          content_item_id: string
+          correct_answer_index: number
+          created_at: string
+          explainer_text: string | null
+          id: string
+          options: Json
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          content_item_id: string
+          correct_answer_index: number
+          created_at?: string
+          explainer_text?: string | null
+          id?: string
+          options: Json
+          question_text: string
+          question_type: string
+        }
+        Update: {
+          content_item_id?: string
+          correct_answer_index?: number
+          created_at?: string
+          explainer_text?: string | null
+          id?: string
+          options?: Json
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_cards: {
+        Row: {
+          created_at: string
+          ease_factor: number
+          id: string
+          interval_days: number
+          last_reviewed_at: string | null
+          next_review_at: string
+          quiz_question_id: string
+          repetitions: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          quiz_question_id: string
+          repetitions?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          quiz_question_id?: string
+          repetitions?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_cards_quiz_question_id_fkey"
+            columns: ["quiz_question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_cards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_sessions: {
+        Row: {
+          cards_answered: number
+          created_at: string
+          id: string
+          retention_score_delta: number
+          session_date: string
+          user_id: string
+        }
+        Insert: {
+          cards_answered?: number
+          created_at?: string
+          id?: string
+          retention_score_delta?: number
+          session_date?: string
+          user_id: string
+        }
+        Update: {
+          cards_answered?: number
+          created_at?: string
+          id?: string
+          retention_score_delta?: number
+          session_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slack_installations: {
         Row: {
           bot_token_encrypted: string
@@ -938,139 +1238,13 @@ export type Database = {
           },
         ]
       }
-      quiz_questions: {
-        Row: {
-          id: string
-          content_item_id: string
-          question_text: string
-          question_type: "multiple_choice" | "true_false" | "scenario"
-          options: Json
-          correct_answer_index: number
-          explainer_text: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          content_item_id: string
-          question_text: string
-          question_type: "multiple_choice" | "true_false" | "scenario"
-          options: Json
-          correct_answer_index: number
-          explainer_text?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          content_item_id?: string
-          question_text?: string
-          question_type?: "multiple_choice" | "true_false" | "scenario"
-          options?: Json
-          correct_answer_index?: number
-          explainer_text?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_questions_content_item_id_fkey"
-            columns: ["content_item_id"]
-            isOneToOne: false
-            referencedRelation: "content_items"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      review_cards: {
-        Row: {
-          id: string
-          user_id: string
-          quiz_question_id: string
-          ease_factor: number
-          interval_days: number
-          repetitions: number
-          next_review_at: string
-          last_reviewed_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          quiz_question_id: string
-          ease_factor?: number
-          interval_days?: number
-          repetitions?: number
-          next_review_at?: string
-          last_reviewed_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          quiz_question_id?: string
-          ease_factor?: number
-          interval_days?: number
-          repetitions?: number
-          next_review_at?: string
-          last_reviewed_at?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "review_cards_quiz_question_id_fkey"
-            columns: ["quiz_question_id"]
-            isOneToOne: false
-            referencedRelation: "quiz_questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "review_cards_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      review_sessions: {
-        Row: {
-          id: string
-          user_id: string
-          session_date: string
-          cards_answered: number
-          retention_score_delta: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          session_date?: string
-          cards_answered?: number
-          retention_score_delta?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          session_date?: string
-          cards_answered?: number
-          retention_score_delta?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "review_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       auth_user_org_id: { Args: never; Returns: string }
+      auth_user_role: { Args: never; Returns: string }
       create_organisation_for_signup: {
         Args: { org_name: string }
         Returns: string

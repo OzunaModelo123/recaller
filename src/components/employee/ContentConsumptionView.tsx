@@ -3,7 +3,16 @@
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CopyCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { CopyCheck, CheckCircle2, AlertCircle, Bookmark } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type Props = {
   assignmentId: string;
@@ -58,6 +67,11 @@ export function ContentConsumptionView({ assignmentId, sourceUrl, sourceType, tr
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [timeReqMet, setTimeReqMet] = useState(false);
 
+  const [showBookmark, setShowBookmark] = useState(false);
+  const [bookmarkNote, setBookmarkNote] = useState("");
+  const [bookmarkTime, setBookmarkTime] = useState(0);
+  const [bookmarkSaving, setBookmarkSaving] = useState(false);
+
   const watchTimeRef = useRef(0);
   const lastHeartbeat = useRef(0);
   const playerRef = useRef<YoutubePlayerLite | null>(null);
@@ -109,7 +123,7 @@ export function ContentConsumptionView({ assignmentId, sourceUrl, sourceType, tr
           playerVars: { playsinline: 1 },
           events: {
             onReady: () => {
-              setInterval(() => {
+              const timer = setInterval(() => {
                 if (
                   playerRef.current &&
                   typeof playerRef.current.getCurrentTime === "function" &&
@@ -122,6 +136,8 @@ export function ContentConsumptionView({ assignmentId, sourceUrl, sourceType, tr
                   }
                 }
               }, 1000);
+              // Clean up polling if player unmounts
+              return () => clearInterval(timer);
             },
             onStateChange: (e: { data: number }) => {
               if (e.data === ytApi.PlayerState.ENDED) {
@@ -172,6 +188,32 @@ export function ContentConsumptionView({ assignmentId, sourceUrl, sourceType, tr
        setError("Network error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleBookmarkClick = () => {
+    setBookmarkTime(Math.floor(watchTimeRef.current));
+    setBookmarkNote("");
+    setShowBookmark(true);
+  };
+
+  const saveBookmark = async () => {
+    setBookmarkSaving(true);
+    try {
+      await fetch("/api/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignmentId,
+          timestampSeconds: bookmarkTime,
+          noteText: bookmarkNote,
+        }),
+      });
+      setShowBookmark(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBookmarkSaving(false);
     }
   };
 
@@ -294,7 +336,7 @@ export function ContentConsumptionView({ assignmentId, sourceUrl, sourceType, tr
   };
 
   return (
-     <div className="mx-auto max-w-2xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+     <div className="mx-auto w-full max-w-2xl px-4 sm:px-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
         <div className="space-y-4 border-b border-border pb-5">
            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               Phase 0: Training Content
@@ -305,6 +347,38 @@ export function ContentConsumptionView({ assignmentId, sourceUrl, sourceType, tr
         </div>
 
         {renderPlayer()}
+
+        <div className="flex justify-start pt-2">
+            <Button variant="outline" size="sm" onClick={handleBookmarkClick} className="rounded-full shadow-sm">
+                <Bookmark className="w-4 h-4 mr-2" />
+                Bookmark Current {sourceType === "pdf" || sourceType === "docx" ? "Location" : "Time"}
+            </Button>
+        </div>
+
+        <Dialog open={showBookmark} onOpenChange={setShowBookmark}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save Bookmark</DialogTitle>
+              <DialogDescription>
+                Add a quick note or highlight for this section.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Textarea 
+                placeholder="This part is interesting because..." 
+                value={bookmarkNote} 
+                onChange={e => setBookmarkNote(e.target.value)} 
+                className="min-h-[100px]"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBookmark(false)} disabled={bookmarkSaving}>Cancel</Button>
+              <Button onClick={saveBookmark} disabled={bookmarkSaving}>
+                {bookmarkSaving ? "Saving..." : "Save Bookmark"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Card className="shadow-none border-primary/20 bg-primary/5 transition-all">
             <CardContent className="pt-6 flex flex-col sm:flex-row items-center gap-4 justify-between">
