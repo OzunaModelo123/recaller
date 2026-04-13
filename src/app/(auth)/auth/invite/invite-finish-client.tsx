@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { employeeInviteNeedsPassword } from "@/lib/auth/employee-invite-state";
 import { sanitizeInternalNext } from "@/lib/auth/safe-next";
+import { completeAuthProvisioningAction } from "./actions";
 
 /**
  * Finishes Supabase magic-link / invite flows (hash or ?code=), persists cookies,
@@ -76,6 +77,16 @@ export function InviteFinishClient() {
 
       if (!user) {
         window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
+
+      await new Promise((r) => setTimeout(r, 120));
+      if (cancelled) return;
+
+      const provisioned = await completeAuthProvisioningAction();
+      if (cancelled) return;
+      if (!provisioned.ok) {
+        setErr(provisioned.error);
         return;
       }
 

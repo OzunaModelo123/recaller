@@ -118,6 +118,21 @@ export async function provisionSignupIfNeeded(
         .update({ status: "accepted" })
         .eq("id", invitation.id);
 
+      const { data: verifyRow, error: verifyErr } = await admin
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (verifyErr || !verifyRow) {
+        if (verifyErr) logPostgrestError("provisionSignup employee verify", verifyErr);
+        return {
+          ok: false,
+          error:
+            "Account could not be loaded after joining. Ask your admin to re-invite you.",
+        };
+      }
+
       return { ok: true };
     }
 

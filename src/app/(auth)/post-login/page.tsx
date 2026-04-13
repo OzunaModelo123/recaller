@@ -25,27 +25,44 @@ export default async function PostLoginPage(props: {
 
   const admin = createAdminClient();
 
-  let { data: profile } = await admin
+  let { data: profile, error: profileErr } = await admin
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (profileErr) {
+    console.error("[post-login] initial users select", profileErr);
+  }
 
   if (!profile) {
     const provisioned = await provisionSignupIfNeeded(supabase, user);
     if (!provisioned.ok) {
       redirect(`/login?error=${encodeURIComponent(provisioned.error)}`);
     }
-    const { data: refetched } = await admin
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    profile = refetched;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 75 * attempt));
+      }
+      const { data: refetched, error: refetchErr } = await admin
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (refetchErr) {
+        console.error("[post-login] refetch users", refetchErr);
+      }
+      if (refetched) {
+        profile = refetched;
+        break;
+      }
+    }
   }
 
   if (!profile) {
-    redirect("/login?error=Account%20could%20not%20be%20loaded.");
+    redirect(
+      `/login?error=${encodeURIComponent("Account could not be loaded. Clear session and open your invite link again.")}`,
+    );
   }
 
   if (profile.role === "employee") {

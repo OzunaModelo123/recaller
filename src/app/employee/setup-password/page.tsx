@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/design/page-header";
 import { SetupPasswordForm } from "./setup-password-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function inviteNeedsPassword(user: {
@@ -31,14 +33,22 @@ export default async function EmployeeSetupPasswordPage() {
     redirect("/post-login");
   }
 
-  const { data: profile } = await supabase
+  const provisioned = await provisionSignupIfNeeded(supabase, user);
+  if (!provisioned.ok) {
+    redirect(`/login?error=${encodeURIComponent(provisioned.error)}`);
+  }
+
+  const admin = createAdminClient();
+  const { data: profile, error: profileErr } = await admin
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!profile) {
-    redirect("/post-login");
+  if (profileErr || !profile) {
+    redirect(
+      `/login?error=${encodeURIComponent("Account could not be loaded. Clear session and use your invite link again.")}`,
+    );
   }
 
   if (profile.role === "admin" || profile.role === "super_admin") {
