@@ -28,16 +28,23 @@ export function SetupPasswordForm() {
     }
 
     setLoading(true);
-    const result = await completeEmployeePasswordSetupAction(password);
-    setLoading(false);
+    try {
+      const result = await completeEmployeePasswordSetupAction(password);
 
-    if (!result.ok) {
-      setError(result.error);
-      return;
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      router.replace("/employee");
+      router.refresh();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Request failed. Check your connection and try again.",
+      );
+    } finally {
+      setLoading(false);
     }
-
-    router.replace("/employee");
-    router.refresh();
   }
 
   return (
