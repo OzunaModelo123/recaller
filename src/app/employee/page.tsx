@@ -7,7 +7,7 @@ import {
   CalendarCheck,
   ClipboardList,
   ListChecks,
-  Plug,
+  BrainCircuit,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/design/empty-state";
@@ -110,6 +110,10 @@ export default async function EmployeeHomePage() {
               <BookOpen className="h-4 w-4 shrink-0 opacity-95" />
               My Plans
             </HeroPanelCta>
+            <HeroPanelCta href="/employee/daily-recall">
+              <BrainCircuit className="h-4 w-4 shrink-0 opacity-95" />
+              Daily Recall
+            </HeroPanelCta>
             {next ? (
               <Link
                 href={`/employee/my-plans/${next.id}`}
@@ -119,20 +123,6 @@ export default async function EmployeeHomePage() {
                 <ArrowRight className="h-4 w-4 shrink-0 opacity-90" />
               </Link>
             ) : null}
-            <Link
-              href="/employee/integrations"
-              className="inline-flex h-11 items-center gap-2 rounded-lg border border-sidebar-border/90 bg-transparent px-5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            >
-              <Plug className="h-4 w-4 shrink-0 opacity-90" />
-              Integrations
-            </Link>
-            <Link
-              href="/employee/profile"
-              className="inline-flex h-11 items-center gap-2 rounded-lg border border-sidebar-border/90 bg-transparent px-5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            >
-              Profile
-              <ArrowRight className="h-4 w-4 shrink-0 opacity-90" />
-            </Link>
           </div>
         </div>
       </section>

@@ -17,6 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 export function PlanAssignSheet({
@@ -34,12 +35,14 @@ export function PlanAssignSheet({
     candidates[0]?.userId ?? null,
   );
   const [note, setNote] = useState("");
+  const [requireContentConsumption, setRequireContentConsumption] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset() {
     setMessage(null);
     setNote("");
+    setRequireContentConsumption(true);
     setSelectedId(candidates[0]?.userId ?? null);
   }
 
@@ -54,6 +57,7 @@ export function PlanAssignSheet({
         planId,
         employeeUserId: selectedId,
         assignerNote: note.trim() || null,
+        requireContentConsumption,
       });
       if (!res.ok) {
         setMessage(res.error);
@@ -151,6 +155,18 @@ export function PlanAssignSheet({
               <p className="text-[11px] text-muted-foreground">
                 Shown at the top of their assignment and on the plan card in My Plans.
               </p>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+               <div>
+                  <Label htmlFor="require-content" className="text-sm font-semibold text-primary">Content Verification</Label>
+                  <p className="text-[11px] text-muted-foreground max-w-sm mt-0.5">Require employee to watch/read the training content before unlocking steps.</p>
+               </div>
+               <Switch 
+                  id="require-content" 
+                  checked={requireContentConsumption} 
+                  onCheckedChange={setRequireContentConsumption} 
+               />
             </div>
 
             {message ? (

@@ -17,7 +17,7 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
 
   const { data: assignment, error: aErr } = await supabase
     .from("assignments")
-    .select("id, assigned_to, plan_id, status, assigner_note")
+    .select("id, assigned_to, plan_id, status, assigner_note, require_content_consumption, content_consumed")
     .eq("id", assignmentId)
     .maybeSingle();
 
@@ -47,14 +47,27 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
     .eq("assignment_id", assignmentId);
 
   let videoWatchBaseUrl: string | null = null;
+  let sourceType: string | null = null;
+  let transcript: string | null = null;
+
   if (plan.content_item_id) {
     const { data: ci } = await supabase
       .from("content_items")
-      .select("source_url")
+      .select("source_url, source_type, file_path, transcript")
       .eq("id", plan.content_item_id)
       .maybeSingle();
-    if (ci?.source_url?.trim()) {
-      videoWatchBaseUrl = ci.source_url.trim();
+
+    if (ci) {
+      if (ci.source_type === "mp4" || ci.source_type === "mp3") {
+         if (ci.file_path) {
+            const { data: pubUrl } = supabase.storage.from("content-files").getPublicUrl(ci.file_path);
+            videoWatchBaseUrl = pubUrl.publicUrl;
+         }
+      } else if (ci.source_url?.trim()) {
+         videoWatchBaseUrl = ci.source_url.trim();
+      }
+      sourceType = ci.source_type;
+      transcript = ci.transcript;
     }
   }
 
@@ -95,6 +108,10 @@ export default async function EmployeeAssignmentPage({ params }: Props) {
       initialCompleted={initialCompleted}
       videoWatchBaseUrl={videoWatchBaseUrl}
       assignerNote={assignment.assigner_note}
+      requireContentConsumption={assignment.require_content_consumption}
+      contentConsumed={assignment.content_consumed}
+      sourceType={sourceType}
+      transcript={transcript}
     />
   );
 }

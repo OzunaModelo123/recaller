@@ -336,6 +336,30 @@ export class NotificationService {
     }
   }
 
+  // ──────────── Daily Recall ────────────
+
+  async sendDailyRecallNudge(orgId: string, userId: string): Promise<void> {
+    const info = await this.resolvePlatform(orgId, userId);
+
+    if (info.platform === "slack" && info.slackUserId) {
+      const token = await this.slackBotToken(orgId);
+      if (token) {
+        console.log(`[Slack] Sending Daily Recall Nudge to ${info.slackUserId}`);
+        await this.log({ orgId, userId, type: "daily_recall", channel: "slack" });
+        return;
+      }
+    }
+
+    if (info.platform === "teams" && info.teamsUserId) {
+      console.log(`[Teams] Sending Daily Recall Nudge to ${info.teamsUserId}`);
+      await this.log({ orgId, userId, type: "daily_recall", channel: "teams" });
+      return;
+    }
+
+    console.log(`[Email] Sending Daily Recall Nudge to ${info.email}`);
+    await this.log({ orgId, userId, type: "daily_recall", channel: "email" });
+  }
+
   // ──────────── Step confirmation ────────────
 
   async sendStepConfirmation(

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { ContentConsumptionView } from "@/components/employee/ContentConsumptionView";
 import { CompletionAnimation } from "@/components/employee/CompletionAnimation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,10 @@ type Props = {
   videoWatchBaseUrl: string | null;
   /** Optional message from admin when the plan was assigned. */
   assignerNote?: string | null;
+  requireContentConsumption?: boolean;
+  contentConsumed?: boolean;
+  sourceType?: string | null;
+  transcript?: string | null;
 };
 
 export function AssignmentStepFlow({
@@ -45,6 +50,10 @@ export function AssignmentStepFlow({
   initialCompleted,
   videoWatchBaseUrl,
   assignerNote,
+  requireContentConsumption,
+  contentConsumed,
+  sourceType,
+  transcript,
 }: Props) {
   const router = useRouter();
   const [completed, setCompleted] = useState<Set<number>>(
@@ -58,6 +67,7 @@ export function AssignmentStepFlow({
   const [difficulty, setDifficulty] = useState<number | "">("");
   const [evidenceText, setEvidenceText] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [consumed, setConsumed] = useState(!!contentConsumed);
 
   const sorted = useMemo(
     () => [...steps].sort((a, b) => a.step_number - b.step_number),
@@ -193,6 +203,18 @@ export function AssignmentStepFlow({
           </p>
         </div>
       ) : null}
+
+      {requireContentConsumption && !consumed ? (
+        <ContentConsumptionView
+           assignmentId={assignmentId}
+           sourceUrl={videoWatchBaseUrl}
+           sourceType={sourceType ?? null}
+           transcript={transcript ?? null}
+           onComplete={() => setConsumed(true)}
+        />
+      ) : (
+        <>
+
 
       {currentStep && (
         <Card className="shadow-none">
@@ -380,6 +402,8 @@ export function AssignmentStepFlow({
             );
           })}
         </div>
+      )}
+      </>
       )}
     </div>
   );

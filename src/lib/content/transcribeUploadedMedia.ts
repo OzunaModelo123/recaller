@@ -6,6 +6,7 @@ import ffmpegPath from "ffmpeg-static";
 import ffprobe from "ffprobe-static";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
+import { inngest } from "@/lib/inngest/client";
 import { purgeContentSourceFile } from "@/lib/content/purgeContentSourceFile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -506,6 +507,11 @@ export async function finalizeTranscription(
   } else {
     await purgeContentSourceFile(admin, contentItemId, { throwOnStorageError: true });
   }
+
+  await inngest.send({
+    name: "content/transcription.completed",
+    data: { contentItemId },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -627,6 +633,11 @@ export async function transcribeUploadedMedia(contentItemId: string): Promise<vo
     } else {
       await purgeContentSourceFile(admin, contentItemId, { throwOnStorageError: true });
     }
+
+    await inngest.send({
+      name: "content/transcription.completed",
+      data: { contentItemId },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await admin

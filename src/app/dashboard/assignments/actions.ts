@@ -61,6 +61,7 @@ export async function createAssignmentsAction(input: {
   groupId?: string;
   dueDate?: string | null;
   scheduledFor?: string | null;
+  requireContentConsumption?: boolean;
 }) {
   const ctx = await requireOrgAdmin();
   if (ctx.error || !ctx.orgId || !ctx.userId) {
@@ -154,6 +155,7 @@ export async function createAssignmentsAction(input: {
     group_id: groupId,
     due_date: due,
     scheduled_for: scheduled,
+    require_content_consumption: input.requireContentConsumption ?? false,
     status: "active" as const,
   }));
 
@@ -229,6 +231,7 @@ export async function assignPlanToEmployeeAction(input: {
   planId: string;
   employeeUserId: string;
   assignerNote?: string | null;
+  requireContentConsumption?: boolean;
 }) {
   const ctx = await requireOrgAdmin();
   if (ctx.error || !ctx.orgId || !ctx.userId) {
@@ -285,6 +288,7 @@ export async function assignPlanToEmployeeAction(input: {
       assigned_to: employeeUserId,
       assigned_by: ctx.userId,
       assigner_note: note,
+      require_content_consumption: input.requireContentConsumption ?? false,
       status: "active",
     })
     .select("id, assigned_to")

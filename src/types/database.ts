@@ -938,6 +938,133 @@ export type Database = {
           },
         ]
       }
+      quiz_questions: {
+        Row: {
+          id: string
+          content_item_id: string
+          question_text: string
+          question_type: "multiple_choice" | "true_false" | "scenario"
+          options: Json
+          correct_answer_index: number
+          explainer_text: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          content_item_id: string
+          question_text: string
+          question_type: "multiple_choice" | "true_false" | "scenario"
+          options: Json
+          correct_answer_index: number
+          explainer_text?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          content_item_id?: string
+          question_text?: string
+          question_type?: "multiple_choice" | "true_false" | "scenario"
+          options?: Json
+          correct_answer_index?: number
+          explainer_text?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      review_cards: {
+        Row: {
+          id: string
+          user_id: string
+          quiz_question_id: string
+          ease_factor: number
+          interval_days: number
+          repetitions: number
+          next_review_at: string
+          last_reviewed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          quiz_question_id: string
+          ease_factor?: number
+          interval_days?: number
+          repetitions?: number
+          next_review_at?: string
+          last_reviewed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          quiz_question_id?: string
+          ease_factor?: number
+          interval_days?: number
+          repetitions?: number
+          next_review_at?: string
+          last_reviewed_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_cards_quiz_question_id_fkey"
+            columns: ["quiz_question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_cards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      review_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          session_date: string
+          cards_answered: number
+          retention_score_delta: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          session_date?: string
+          cards_answered?: number
+          retention_score_delta?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          session_date?: string
+          cards_answered?: number
+          retention_score_delta?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

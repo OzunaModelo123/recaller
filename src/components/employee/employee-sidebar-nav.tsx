@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Home, Plug, UserCircle } from "lucide-react";
+import { BookOpen, Home, BrainCircuit } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,23 +14,16 @@ const items = [
     isActive: (p: string) => p === "/employee" || p === "/employee/",
   },
   {
+    href: "/employee/daily-recall",
+    label: "Daily Recall",
+    icon: BrainCircuit,
+    isActive: (p: string) => p.startsWith("/employee/daily-recall"),
+  },
+  {
     href: "/employee/my-plans",
     label: "My Plans",
     icon: BookOpen,
     isActive: (p: string) => p.startsWith("/employee/my-plans"),
-  },
-  {
-    href: "/employee/profile",
-    label: "Profile",
-    icon: UserCircle,
-    isActive: (p: string) => p === "/employee/profile",
-  },
-  {
-    href: "/employee/integrations",
-    label: "Integrations",
-    icon: Plug,
-    isActive: (p: string) =>
-      p === "/employee/integrations" || p.startsWith("/employee/integrations/"),
   },
 ] as const;
 
