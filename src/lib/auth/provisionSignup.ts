@@ -74,23 +74,30 @@ export async function provisionSignupIfNeeded(
       }
 
       // ── Seat limit enforcement ──
-      const [{ data: sub }, { count: currentUsers }] = await Promise.all([
-        admin
-          .from("subscriptions")
-          .select("seat_limit")
-          .eq("org_id", invitedOrgId)
-          .maybeSingle(),
-        admin
-          .from("users")
-          .select("id", { count: "exact", head: true })
-          .eq("org_id", invitedOrgId),
-      ]);
+      // Optional bypass for local/staging (same flag pattern as api-guards checkSeatLimit).
+      const bypassSeats =
+        process.env.NODE_ENV !== "production" &&
+        process.env.ENABLE_SUBSCRIPTION_CHECKS !== "true";
 
-      if (sub?.seat_limit && (currentUsers ?? 0) >= sub.seat_limit) {
-        return {
-          ok: false,
-          error: `Your organization has reached its seat limit (${sub.seat_limit}). Ask your admin to upgrade the plan.`,
-        };
+      if (!bypassSeats) {
+        const [{ data: sub }, { count: currentUsers }] = await Promise.all([
+          admin
+            .from("subscriptions")
+            .select("seat_limit")
+            .eq("org_id", invitedOrgId)
+            .maybeSingle(),
+          admin
+            .from("users")
+            .select("id", { count: "exact", head: true })
+            .eq("org_id", invitedOrgId),
+        ]);
+
+        if (sub?.seat_limit && (currentUsers ?? 0) >= sub.seat_limit) {
+          return {
+            ok: false,
+            error: `Your organization has reached its seat limit (${sub.seat_limit}). Ask your admin to upgrade the plan.`,
+          };
+        }
       }
 
       const { error: userError } = await admin.from("users").insert({
@@ -155,7 +162,8 @@ export async function provisionSignupIfNeeded(
         status: "trialing",
         plan_tier: "starter",
         seat_count: 1,
-        seat_limit: 1,
+        // Trial cap must allow admin + invited employees (seat_limit counts all `users` rows).
+        seat_limit: 10,
         trial_ends_at: trialEndsAt,
       },
       { onConflict: "org_id" },
