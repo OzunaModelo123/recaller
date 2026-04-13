@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/design/page-header";
 import { SetupPasswordForm } from "./setup-password-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { signEmployeeSetupToken } from "@/lib/auth/employee-setup-token";
 import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -57,10 +58,14 @@ export default async function EmployeeSetupPasswordPage() {
     redirect("/dashboard");
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const serverAccessToken = session?.access_token ?? null;
+  let setupToken: string;
+  try {
+    setupToken = signEmployeeSetupToken(user.id);
+  } catch {
+    redirect(
+      `/login?error=${encodeURIComponent("Server configuration error (setup token). Contact support.")}`,
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md space-y-6">
@@ -91,7 +96,7 @@ export default async function EmployeeSetupPasswordPage() {
 
       <Card className="border-border/90 shadow-[var(--shadow-card)]">
         <CardContent className="p-6 pt-2">
-          <SetupPasswordForm serverAccessToken={serverAccessToken} />
+          <SetupPasswordForm setupToken={setupToken} />
         </CardContent>
       </Card>
 

@@ -1,19 +1,9 @@
-import {
-  createClient as createSupabaseJsClient,
-  type User,
-} from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyEmployeeSetupToken } from "@/lib/auth/employee-setup-token";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/route-handler-client";
 
 export const runtime = "nodejs";
-
-function bearerToken(request: NextRequest): string | null {
-  const raw = request.headers.get("authorization") ?? request.headers.get("Authorization");
-  if (!raw?.toLowerCase().startsWith("bearer ")) return null;
-  const t = raw.slice(7).trim();
-  return t.length > 0 ? t : null;
-}
 
 /** GoTrue accepts string/boolean metadata; strip unknown shapes to avoid admin API failures. */
 function safeUserMetadataPatch(meta: unknown): Record<string, string | boolean> {
@@ -30,63 +20,63 @@ function safeUserMetadataPatch(meta: unknown): Record<string, string | boolean> 
   return out;
 }
 
+function isInviteAwaitingPassword(user: {
+  user_metadata?: Record<string, unknown> | null;
+}): boolean {
+  const meta = user.user_metadata ?? {};
+  const invited =
+    typeof meta.invited_org_id === "string" && meta.invited_org_id.length > 0;
+  const set =
+    typeof meta.password_set_at === "string" && meta.password_set_at.length > 0;
+  return invited && !set;
+}
+
 /**
- * Employee invite password step — Route Handler (not a Server Action) so responses are
- * always normal JSON and cookie/session edge cases don’t break the RSC action protocol.
+ * Employee invite password — identifies the user via a short-lived HMAC token minted on
+ * the setup-password RSC (no cookie/Bearer dependency in this handler).
  */
 export async function POST(request: NextRequest) {
+  const { supabase: routeSupabase, applyCookies } = createSupabaseRouteHandlerClient(request);
+
+  function json(body: unknown, status: number) {
+    const res = NextResponse.json(body, { status });
+    applyCookies(res);
+    return res;
+  }
+
   try {
-    let body: { password?: string };
+    let body: { password?: string; setupToken?: string };
     try {
-      body = (await request.json()) as { password?: string };
+      body = (await request.json()) as { password?: string; setupToken?: string };
     } catch {
-      return NextResponse.json({ ok: false, error: "Invalid request body." }, { status: 400 });
+      return json({ ok: false, error: "Invalid request body." }, 400);
     }
 
     const password = String(body.password ?? "").trim();
     if (password.length < 8) {
-      return NextResponse.json(
-        { ok: false, error: "Password must be at least 8 characters." },
-        { status: 400 },
-      );
+      return json({ ok: false, error: "Password must be at least 8 characters." }, 400);
     }
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url?.trim() || !anon?.trim()) {
-      return NextResponse.json(
-        { ok: false, error: "Server misconfiguration (Supabase URL/key)." },
-        { status: 500 },
-      );
-    }
+    const setupToken = typeof body.setupToken === "string" ? body.setupToken.trim() : "";
+    let userId = verifyEmployeeSetupToken(setupToken);
 
-    const token = bearerToken(request);
-    let user: User | null = null;
-
-    if (token) {
-      const supa = createSupabaseJsClient(url, anon);
-      const { data, error } = await supa.auth.getUser(token);
-      if (!error && data.user) {
-        user = data.user;
+    if (!userId) {
+      const {
+        data: { user: sessionUser },
+      } = await routeSupabase.auth.getUser();
+      if (sessionUser && isInviteAwaitingPassword(sessionUser)) {
+        userId = sessionUser.id;
       }
     }
 
-    if (!user) {
-      const supabase = await createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      user = session?.user ?? null;
-    }
-
-    if (!user) {
-      return NextResponse.json(
+    if (!userId) {
+      return json(
         {
           ok: false,
           error:
-            "Session expired. Open your invite link again in this same browser, then set your password.",
+            "We could not confirm your invite session. Refresh this page, or open your invite link again in the same browser, then set your password.",
         },
-        { status: 401 },
+        401,
       );
     }
 
@@ -94,9 +84,28 @@ export async function POST(request: NextRequest) {
     try {
       admin = createAdminClient();
     } catch {
-      return NextResponse.json(
+      return json(
         { ok: false, error: "Server is missing Supabase service configuration." },
-        { status: 500 },
+        500,
+      );
+    }
+
+    const { data: authData, error: getErr } = await admin.auth.admin.getUserById(userId);
+    if (getErr || !authData.user) {
+      return json(
+        { ok: false, error: "Account not found. Ask your admin to send a new invite." },
+        401,
+      );
+    }
+
+    const user = authData.user;
+    if (!isInviteAwaitingPassword(user)) {
+      return json(
+        {
+          ok: false,
+          error: "Password is already set. Sign in with your email and password.",
+        },
+        403,
       );
     }
 
@@ -111,18 +120,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+      return json({ ok: false, error: error.message }, 400);
     }
 
-    return NextResponse.json({ ok: true });
+    return json({ ok: true }, 200);
   } catch (e) {
     console.error("[api/employee/setup-password]", e);
-    return NextResponse.json(
+    return json(
       {
         ok: false,
         error: e instanceof Error ? e.message : "Server error. Try again.",
       },
-      { status: 500 },
+      500,
     );
   }
 }

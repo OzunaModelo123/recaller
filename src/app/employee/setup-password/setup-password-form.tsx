@@ -3,17 +3,16 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Props = {
-  /** From Server Component cookie session — browser Supabase client often has no session here. */
-  serverAccessToken: string | null;
+  /** HMAC token minted on the server — password API does not rely on browser cookies. */
+  setupToken: string;
 };
 
-export function SetupPasswordForm({ serverAccessToken }: Props) {
+export function SetupPasswordForm({ setupToken }: Props) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -34,35 +33,11 @@ export function SetupPasswordForm({ serverAccessToken }: Props) {
 
     setLoading(true);
     try {
-      let accessToken = serverAccessToken?.trim() || null;
-
-      if (!accessToken) {
-        const supabase = createClient();
-        let {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          session = refreshed.session ?? null;
-        }
-        accessToken = session?.access_token ?? null;
-      }
-
-      if (!accessToken) {
-        setError(
-          "Could not read your sign-in session. Open your invite link again, or sign out and retry.",
-        );
-        return;
-      }
-
       const res = await fetch("/api/employee/setup-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, setupToken }),
       });
 
       let data: { ok?: boolean; error?: string };
