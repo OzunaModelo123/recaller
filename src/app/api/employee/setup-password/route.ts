@@ -1,8 +1,19 @@
+import {
+  createClient as createSupabaseJsClient,
+  type User,
+} from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+function bearerToken(request: NextRequest): string | null {
+  const raw = request.headers.get("authorization") ?? request.headers.get("Authorization");
+  if (!raw?.toLowerCase().startsWith("bearer ")) return null;
+  const t = raw.slice(7).trim();
+  return t.length > 0 ? t : null;
+}
 
 /** GoTrue accepts string/boolean metadata; strip unknown shapes to avoid admin API failures. */
 function safeUserMetadataPatch(meta: unknown): Record<string, string | boolean> {
@@ -40,22 +51,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url?.trim() || !anon?.trim()) {
+      return NextResponse.json(
+        { ok: false, error: "Server misconfiguration (Supabase URL/key)." },
+        { status: 500 },
+      );
+    }
 
-    if (!session?.user) {
+    const token = bearerToken(request);
+    let user: User | null = null;
+
+    if (token) {
+      const supa = createSupabaseJsClient(url, anon);
+      const { data, error } = await supa.auth.getUser(token);
+      if (!error && data.user) {
+        user = data.user;
+      }
+    }
+
+    if (!user) {
+      const supabase = await createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      user = session?.user ?? null;
+    }
+
+    if (!user) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Session expired. Open your invite link again or sign in.",
+          error:
+            "Session expired. Open your invite link again in this same browser, then set your password.",
         },
         { status: 401 },
       );
     }
-
-    const user = session.user;
 
     let admin: ReturnType<typeof createAdminClient>;
     try {

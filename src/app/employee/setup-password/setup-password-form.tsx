@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +29,30 @@ export function SetupPasswordForm() {
 
     setLoading(true);
     try {
+      const supabase = createClient();
+      let {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        session = refreshed.session ?? null;
+      }
+
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        setError(
+          "Your browser has no active sign-in for this tab. Open the invite link from your email again, then set your password without closing that tab.",
+        );
+        return;
+      }
+
       const res = await fetch("/api/employee/setup-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
         credentials: "same-origin",
         body: JSON.stringify({ password }),
       });
