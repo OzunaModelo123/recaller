@@ -8,6 +8,8 @@ import { provisionSignupIfNeeded } from "@/lib/auth/provisionSignup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 function inviteNeedsPassword(user: {
   user_metadata?: Record<string, unknown> | null;
 }): boolean {
@@ -55,6 +57,11 @@ export default async function EmployeeSetupPasswordPage() {
     redirect("/dashboard");
   }
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const serverAccessToken = session?.access_token ?? null;
+
   return (
     <div className="mx-auto max-w-md space-y-6">
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-sidebar/20 via-card to-primary/10 px-5 py-6 shadow-[var(--shadow-card)]">
@@ -84,7 +91,7 @@ export default async function EmployeeSetupPasswordPage() {
 
       <Card className="border-border/90 shadow-[var(--shadow-card)]">
         <CardContent className="p-6 pt-2">
-          <SetupPasswordForm />
+          <SetupPasswordForm serverAccessToken={serverAccessToken} />
         </CardContent>
       </Card>
 

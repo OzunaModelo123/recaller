@@ -8,7 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SetupPasswordForm() {
+type Props = {
+  /** From Server Component cookie session — browser Supabase client often has no session here. */
+  serverAccessToken: string | null;
+};
+
+export function SetupPasswordForm({ serverAccessToken }: Props) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -29,20 +34,23 @@ export function SetupPasswordForm() {
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      let {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let accessToken = serverAccessToken?.trim() || null;
 
-      if (!session?.access_token) {
-        const { data: refreshed } = await supabase.auth.refreshSession();
-        session = refreshed.session ?? null;
+      if (!accessToken) {
+        const supabase = createClient();
+        let {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          session = refreshed.session ?? null;
+        }
+        accessToken = session?.access_token ?? null;
       }
 
-      const accessToken = session?.access_token;
       if (!accessToken) {
         setError(
-          "Your browser has no active sign-in for this tab. Open the invite link from your email again, then set your password without closing that tab.",
+          "Could not read your sign-in session. Open your invite link again, or sign out and retry.",
         );
         return;
       }
