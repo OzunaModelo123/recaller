@@ -3,7 +3,6 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { completeEmployeePasswordSetupAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,10 +28,23 @@ export function SetupPasswordForm() {
 
     setLoading(true);
     try {
-      const result = await completeEmployeePasswordSetupAction(password);
+      const res = await fetch("/api/employee/setup-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ password }),
+      });
 
-      if (!result.ok) {
-        setError(result.error);
+      let data: { ok?: boolean; error?: string };
+      try {
+        data = (await res.json()) as { ok?: boolean; error?: string };
+      } catch {
+        setError(`Server error (HTTP ${res.status}). Please try again.`);
+        return;
+      }
+
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? `Request failed (HTTP ${res.status}).`);
         return;
       }
 
@@ -40,7 +52,7 @@ export function SetupPasswordForm() {
       router.refresh();
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Request failed. Check your connection and try again.",
+        e instanceof Error ? e.message : "Network error. Check your connection and try again.",
       );
     } finally {
       setLoading(false);
